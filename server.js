@@ -47,7 +47,7 @@ const startServer = async () => {
     app.use(urlencoded({ extended: true }));
     // app.use(cors());
     app.use(cors({
-  origin: ["http://192.168.1.68:3001","http://192.168.1.68:3000","http://localhost:3001","http://localhost:3000"],
+  origin: ["http://192.168.1.68:3001","http://192.168.1.68:3000","http://localhost:3001","http://localhost:3000", "https://api.souqx.online"],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 }));
