@@ -1,0 +1,345 @@
+import { hash } from "bcryptjs";
+import JsonRes from "../../helpers/response.js";
+import User from "../../models/user/user.js";
+
+import VendorDetail from "../../models/vendorDetails/vendorDetails.js";
+import jwt from "jsonwebtoken";
+import { ROLES } from "../../utils/constant.js";
+import crypto from "crypto";
+import { COLORS } from "../../utils/constant.js";
+import { sendMail } from "../../helpers/mail.js";
+import { convertTimeToUTC } from "../../helpers/utc.js";
+import Promotion from "../../models/promotionSchema/promotionSchema.js";
+import Product from "../../models/product/products.js";
+import { getPresignedImageUrls } from "../../services/s3Service.js";
+const {
+  badRequest,
+  conflict,
+  success,
+  serverError,
+  failed,
+  dataCreated,
+  unauthorized,
+  notFound,
+} = JsonRes;
+
+export const addPromotion = async (req, res) => {
+  try {
+    const vendorId = req.user.id;
+
+    const {
+      title,
+      description,
+      discountPercentage,
+      type,
+      productIds,
+      promotionCode,
+      paidFlag,
+      startDate,
+      endDate,
+      hours,
+    } = req.body;
+    if (type === "promotion" && promotionCode) {
+      const exists = await Promotion.findOne({
+        vendorId,
+        promotionCode: promotionCode.toUpperCase(),
+      });
+      if (exists) {
+        return error(res, "Promotion code already in use.");
+      }
+    }
+    const promotion = new Promotion({
+      vendorId,
+      title,
+      description,
+      discountPercentage,
+      type,
+      productIds,
+      paidFlag: paidFlag || null,
+      hours: type === "flash-sale" ? hours : null,
+      promotionCode: promotionCode ? promotionCode.toUpperCase() : undefined,
+      startDate: startDate ? new Date(startDate) : undefined,
+      endDate: endDate ? new Date(endDate) : undefined,
+    });
+
+    await promotion.save();
+
+    return success(res, promotion, "Promotion created successfully.");
+  } catch (err) {
+    console.error("Promotion creation error:", err);
+    return serverError(res, err, "Failed to create promotion.");
+  }
+};
+
+export const getPromotions = async (req, res) => {
+  try {
+    const vendorId = req.user.id;
+
+    // ───── extract filters from query ─────
+    const { search = "", type } = req.query;
+
+    // build query object
+    const query = {
+      vendorId,
+      isDeleted: false,
+    };
+
+    // apply search by title (case insensitive)
+    if (search) {
+      query.title = { $regex: search, $options: "i" };
+    }
+
+    // apply type filter
+    if (type) {
+      query.type = type;
+    }
+
+    // ───── fetch promotions with filters ─────
+    const rawPromotions = await Promotion.find(query)
+      .sort({ createdAt: -1 })
+      .populate({
+        path: "productIds",
+        populate: {
+          path: "category",
+          select: "category subCategory color commission images variants",
+        },
+      });
+
+    // ───── enrich product images with presigned urls ─────
+    const promotions = await Promise.all(
+      rawPromotions.map(async (promotion) => {
+        const plainPromo = promotion.toObject();
+
+        const enrichedProducts = await Promise.all(
+          (plainPromo.productIds || []).map(async (product) => {
+            const plainProduct = { ...product };
+
+            // Replace product images with presigned URLs
+            if (plainProduct.images?.length > 0) {
+              plainProduct.images = await getPresignedImageUrls(
+                plainProduct.images
+              );
+            }
+
+            // Replace variant images
+            if (plainProduct.variants?.length > 0) {
+              plainProduct.variants = await Promise.all(
+                plainProduct.variants.map(async (variant) => {
+                  if (variant.images?.length > 0) {
+                    variant.images = await getPresignedImageUrls(
+                      variant.images
+                    );
+                  }
+                  return variant;
+                })
+              );
+            }
+
+            return plainProduct;
+          })
+        );
+
+        return {
+          ...plainPromo,
+          productIds: enrichedProducts,
+        };
+      })
+    );
+
+    return success(res, promotions, "Promotions fetched successfully.");
+  } catch (err) {
+    console.error("Error fetching promotions:", err);
+    return serverError(res, err, "Failed to fetch promotions.");
+  }
+};
+
+export const updatePromotion = async (req, res) => {
+  try {
+    const vendorId = req.user.id;
+    const { id } = req.params;
+
+    const {
+      title,
+      description,
+      discountPercentage,
+      type,
+      productIds,
+      startDate,
+      endDate,
+    } = req.body;
+
+    const promotion = await Promotion.findOne({ _id: id, vendorId });
+
+    if (!promotion) return notFound(res, null, "Promotion not found.");
+
+    promotion.title = title ?? promotion.title;
+    promotion.description = description ?? promotion.description;
+    promotion.discountPercentage =
+      discountPercentage ?? promotion.discountPercentage;
+    promotion.type = type ?? promotion.type;
+    promotion.productIds = productIds ?? promotion.productIds;
+    promotion.startDate = startDate ? new Date(startDate) : promotion.startDate;
+    promotion.endDate = endDate ? new Date(endDate) : promotion.endDate;
+
+    await promotion.save();
+
+    return success(res, promotion, "Promotion updated successfully.");
+  } catch (err) {
+    console.error("Update promotion error:", err);
+    return serverError(res, err, "Failed to update promotion.");
+  }
+};
+
+export const deletePromotion = async (req, res) => {
+  try {
+    const vendorId = req.user.id;
+    const { id } = req.params;
+
+    const promotion = await Promotion.findOneAndUpdate(
+      { _id: id, vendorId, isDeleted: false },
+      { isDeleted: true },
+      { new: true }
+    );
+
+    if (!promotion) {
+      return notFound(res, null, "Promotion not found or already deleted.");
+    }
+
+    return success(res, null, "Promotion deleted successfully.");
+  } catch (err) {
+    console.error("Delete promotion error:", err);
+    return serverError(res, err, "Failed to delete promotion.");
+  }
+};
+
+export const getAllPromotions = async (req, res) => {
+  try {
+    const {
+      title,
+      type,
+      promotionCode,
+      isActive,
+      page = 1,
+      limit = 10,
+    } = req.query;
+    const pageNumber = parseInt(page, 10);
+    const pageLimit = parseInt(limit, 10);
+
+    let filter = {};
+
+    // Search by specific fields
+    if (title) {
+      filter.title = { $regex: title, $options: "i" };
+    }
+    if (type) {
+      filter.type = { $regex: type, $options: "i" };
+    }
+    if (promotionCode) {
+      filter.promotionCode = { $regex: promotionCode, $options: "i" };
+    }
+
+    // Filter by isActive (true/false)
+    if (isActive !== undefined) {
+      filter.isActive = isActive === "true";
+    }
+
+    // Total count for pagination
+    const totalCount = await Promotion.countDocuments(filter);
+
+    // Fetch paginated promotions
+    const rawPromotions = await Promotion.find(filter)
+      .sort({ createdAt: -1 })
+      .skip((pageNumber - 1) * pageLimit)
+      .limit(pageLimit)
+      .populate({
+        path: "productIds",
+        populate: {
+          path: "category",
+          select: "category subCategory color commission images variants",
+        },
+      });
+
+    // Enhance products with presigned URLs
+    const promotions = await Promise.all(
+      rawPromotions.map(async (promotion) => {
+        const plainPromo = promotion.toObject();
+
+        const enrichedProducts = await Promise.all(
+          (plainPromo.productIds || []).map(async (product) => {
+            const plainProduct = { ...product };
+
+            if (plainProduct.images?.length) {
+              plainProduct.images = await getPresignedImageUrls(
+                plainProduct.images
+              );
+            }
+
+            if (plainProduct.variants?.length) {
+              plainProduct.variants = await Promise.all(
+                plainProduct.variants.map(async (variant) => {
+                  if (variant.images?.length) {
+                    variant.images = await getPresignedImageUrls(
+                      variant.images
+                    );
+                  }
+                  return variant;
+                })
+              );
+            }
+
+            return plainProduct;
+          })
+        );
+
+        return {
+          ...plainPromo,
+          productIds: enrichedProducts,
+        };
+      })
+    );
+
+    return success(
+      res,
+      {
+        data: promotions,
+        totalRecords: totalCount,
+        currentPage: pageNumber,
+        pageSize: pageLimit,
+      },
+      "Promotions fetched successfully."
+    );
+  } catch (err) {
+    console.error("Error fetching promotions:", err);
+    return serverError(res, err, "Failed to fetch promotions.");
+  }
+};
+
+export const updateStatus = async (req, res) => {
+  try {
+    const { id, isDeleted, isActive } = req.body;
+
+    // Build update object dynamically
+    const updateFields = {};
+    if (typeof isDeleted === "boolean") updateFields.isDeleted = isDeleted;
+    if (typeof isActive === "boolean") updateFields.isActive = isActive;
+
+    if (Object.keys(updateFields).length === 0) {
+      return badRequest(res, "No valid status fields provided.");
+    }
+
+    const promotion = await Promotion.findOneAndUpdate(
+      { _id: id },
+      updateFields,
+      { new: true }
+    );
+
+    if (!promotion) {
+      return notFound(res, "Promotion not found.");
+    }
+
+    return success(res, promotion, "Promotion status updated successfully.");
+  } catch (err) {
+    console.error("Error updating promotion status:", err);
+    return serverError(res, err, "Failed to update promotion status.");
+  }
+};

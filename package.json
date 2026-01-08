@@ -1,0 +1,53 @@
+{
+  "name": "dualmarketplacebackend",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "start:local": "NODE_ENV=local dotenv -e .env.local nodemon server.js",
+    "staging": "NODE_ENV=staging dotenv -e .env.staging node server.js",
+    "start:prod": "NODE_ENV=production dotenv -e .env.production node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.842.0",
+    "@aws-sdk/s3-request-presigner": "^3.842.0",
+    "@paypal/checkout-server-sdk": "^1.0.3",
+    "axios": "^1.10.0",
+    "bcrypt": "^6.0.0",
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "crypto": "^1.0.1",
+    "dotenv": "^16.6.1",
+    "express": "^5.1.0",
+    "express-basic-auth": "^1.2.1",
+    "firebase-admin": "^13.4.0",
+    "isomorphic-dompurify": "^2.26.0",
+    "joi": "^17.13.3",
+    "jsonwebtoken": "^9.0.2",
+    "moment-timezone": "^0.6.0",
+    "mongoose": "^8.15.1",
+    "mongoose-aggregate-paginate-v2": "^1.1.4",
+    "mongoose-delete": "^1.0.2",
+    "mongoose-paginate-v2": "^1.9.1",
+    "multer": "^2.0.1",
+    "nodemailer": "^7.0.3",
+    "pg": "^8.16.3",
+    "postgres": "^3.4.7",
+    "sequelize": "^6.37.7",
+    "sharp": "^0.34.2",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
+    "swagger-ui-express": "^5.0.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "dotenv-cli": "^8.0.0",
+    "nodemon": "^3.1.10"
+  }
+}
