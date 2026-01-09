@@ -91,7 +91,7 @@ export const getPromotions = async (req, res) => {
 
     // apply type filter
     if (type) {
-      query.type = type;
+      query.type = { $regex: `^${type}$`, $options: "i" }; 
     }
 
     // ───── fetch promotions with filters ─────

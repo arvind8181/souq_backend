@@ -6,7 +6,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "start:local": "NODE_ENV=local dotenv -e .env.local nodemon server.js",
+    "start:local": "NODE_ENV=local dotenv -e .env.staging nodemon server.js",
     "staging": "NODE_ENV=staging dotenv -e .env.staging node server.js",
     "start:prod": "NODE_ENV=production dotenv -e .env.production node server.js",
     "test": "echo \"Error: no test specified\" && exit 1"

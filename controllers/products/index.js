@@ -150,13 +150,120 @@ export const createProduct = async (req, res) => {
   }
 };
 
+// export const getProducts = async (req, res) => {
+//   try {
+//     /* -------------------------------------------------------------- */
+//     /* 1️⃣  Which source are we reading params from?                   */
+//     /*    ─ GET  (vendor) → req.query                                 */
+//     /*    ─ POST (admin)  → req.body                                  */
+//     /* -------------------------------------------------------------- */
+//     const src = req.method === "POST" ? req.body : req.query;
+
+//     const {
+//       page = 1,
+//       pageSize = 10,
+//       sortKey = "createdAt",
+//       sortDirection = "desc",
+//       search, // 👈 new param (search in productName)
+//       categoryName, // 👈 new param (filter by category name)
+//     } = src;
+
+//     const pageNum = parseInt(page, 10);
+//     const limit = parseInt(pageSize, 10);
+//     const skip = (pageNum - 1) * limit;
+//     const sort = { [sortKey]: sortDirection.toLowerCase() === "asc" ? 1 : -1 };
+
+//     /* -------------------------------------------------------------- */
+//     /* Build Mongo filter                                             */
+//     /* -------------------------------------------------------------- */
+//     const filter = { deleted: false };
+
+//     // Vendor restriction
+//     if (req.user.role === ROLES.VENDOR) {
+//       filter.vendorId = req.user.id;
+//     } else if (req.user.role === ROLES.ADMIN) {
+//       if (src.vendorId) filter.vendorId = src.vendorId;
+//     }
+
+//     // 🔍 Search by productName
+//     if (search) {
+//       filter.productName = { $regex: search, $options: "i" }; // case-insensitive
+//     }
+
+//     // 🎯 Filter by Category Name
+//     if (categoryName) {
+//       const categoryDoc = await Category.findOne({
+//         category: { $regex: categoryName, $options: "i" }, // case-insensitive match
+//       }).select("_id");
+
+//       if (categoryDoc) {
+//         filter.category = categoryDoc._id;
+//       } else {
+//         // If no category matches, return empty result early
+//         return success(
+//           res,
+//           { data: [], totalRecords: 0, currentPage: pageNum, pageSize: limit },
+//           "No products found for the given category."
+//         );
+//       }
+//     }
+
+//     /* -------------------------------------------------------------- */
+//     /* Query DB                                                       */
+//     /* -------------------------------------------------------------- */
+//     const totalRecords = await Product.countDocuments(filter);
+
+//     const rawProducts = await Product.find(filter)
+//       .sort(sort)
+//       .skip(skip)
+//       .limit(limit)
+//       .populate({
+//         path: "category",
+//         select: "category subCategory color commission",
+//       });
+
+//     const products = await Promise.all(
+//       rawProducts.map(async (product) => {
+//         const plainProduct = product.toObject();
+
+//         if (plainProduct.images?.length > 0) {
+//           plainProduct.images = await getPresignedImageUrls(
+//             plainProduct.images
+//           );
+//         }
+
+//         const updatedVariants = await Promise.all(
+//           plainProduct.variants.map(async (variant) => {
+//             if (variant.images?.length > 0) {
+//               const imageUrls = await getPresignedImageUrls(variant.images);
+//               return { ...variant, images: imageUrls };
+//             }
+//             return variant;
+//           })
+//         );
+
+//         return { ...plainProduct, variants: updatedVariants };
+//       })
+//     );
+
+//     return success(
+//       res,
+//       {
+//         data: products,
+//         totalRecords,
+//         currentPage: pageNum,
+//         pageSize: limit,
+//       },
+//       "Products retrieved successfully."
+//     );
+//   } catch (err) {
+//     console.error("Error retrieving products:", err);
+//     return serverError(res, err, "Failed to retrieve products.");
+//   }
+// };
+
 export const getProducts = async (req, res) => {
   try {
-    /* -------------------------------------------------------------- */
-    /* 1️⃣  Which source are we reading params from?                   */
-    /*    ─ GET  (vendor) → req.query                                 */
-    /*    ─ POST (admin)  → req.body                                  */
-    /* -------------------------------------------------------------- */
     const src = req.method === "POST" ? req.body : req.query;
 
     const {
@@ -164,53 +271,30 @@ export const getProducts = async (req, res) => {
       pageSize = 10,
       sortKey = "createdAt",
       sortDirection = "desc",
-      search, // 👈 new param (search in productName)
-      categoryName, // 👈 new param (filter by category name)
+      search,
+      categoryName, 
     } = src;
 
     const pageNum = parseInt(page, 10);
     const limit = parseInt(pageSize, 10);
     const skip = (pageNum - 1) * limit;
-    const sort = { [sortKey]: sortDirection.toLowerCase() === "asc" ? 1 : -1 };
 
-    /* -------------------------------------------------------------- */
-    /* Build Mongo filter                                             */
-    /* -------------------------------------------------------------- */
+    const sort = {
+      [sortKey]: sortDirection.toLowerCase() === "asc" ? 1 : -1,
+    };
+
     const filter = { deleted: false };
-
-    // Vendor restriction
     if (req.user.role === ROLES.VENDOR) {
       filter.vendorId = req.user.id;
-    } else if (req.user.role === ROLES.ADMIN) {
-      if (src.vendorId) filter.vendorId = src.vendorId;
+    } else if (req.user.role === ROLES.ADMIN && src.vendorId) {
+      filter.vendorId = src.vendorId;
     }
-
-    // 🔍 Search by productName
     if (search) {
-      filter.productName = { $regex: search, $options: "i" }; // case-insensitive
+      filter.productName = { $regex: search, $options: "i" };
     }
-
-    // 🎯 Filter by Category Name
     if (categoryName) {
-      const categoryDoc = await Category.findOne({
-        category: { $regex: categoryName, $options: "i" }, // case-insensitive match
-      }).select("_id");
-
-      if (categoryDoc) {
-        filter.category = categoryDoc._id;
-      } else {
-        // If no category matches, return empty result early
-        return success(
-          res,
-          { data: [], totalRecords: 0, currentPage: pageNum, pageSize: limit },
-          "No products found for the given category."
-        );
-      }
+      filter.category = categoryName; 
     }
-
-    /* -------------------------------------------------------------- */
-    /* Query DB                                                       */
-    /* -------------------------------------------------------------- */
     const totalRecords = await Product.countDocuments(filter);
 
     const rawProducts = await Product.find(filter)
@@ -226,7 +310,7 @@ export const getProducts = async (req, res) => {
       rawProducts.map(async (product) => {
         const plainProduct = product.toObject();
 
-        if (plainProduct.images?.length > 0) {
+        if (plainProduct.images?.length) {
           plainProduct.images = await getPresignedImageUrls(
             plainProduct.images
           );
@@ -234,7 +318,7 @@ export const getProducts = async (req, res) => {
 
         const updatedVariants = await Promise.all(
           plainProduct.variants.map(async (variant) => {
-            if (variant.images?.length > 0) {
+            if (variant.images?.length) {
               const imageUrls = await getPresignedImageUrls(variant.images);
               return { ...variant, images: imageUrls };
             }

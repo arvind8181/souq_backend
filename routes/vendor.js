@@ -53,6 +53,6 @@ router.get(`/`, verifyVendor, VenderController.getVendor);
 router.get(`/admin-vendors`, verifyAdmin, VenderController.getVendors);
 router.get(`/admin/all-vendors`, verifyAdmin, VenderController.getAllVendors);
 router.get("/getVendorProducts/:vendorId", VenderController.getVendorProducts);
-router.post("/getMarketplaceCombinedForHomeApi",verifyCustomer, VenderController.getMarketplaceCombinedForHomeApi);
+router.post("/getMarketplaceCombinedForHomeApi", VenderController.getMarketplaceCombinedForHomeApi);
 /******************************* END ******************************/
 export default router;

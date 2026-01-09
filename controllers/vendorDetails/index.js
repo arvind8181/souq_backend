@@ -1426,7 +1426,7 @@ export const getMarketplaceCombinedForHomeApi = async (req, res) => {
     const marketplaceFilter = {
       deleted: false,
       isAvailable: true,
-      productType: 2, // Marketplace
+       productType: 2, // Marketplace
       "ratings.overall": { $gt: 0 }, // only products with ratings
     };
 
@@ -1436,7 +1436,7 @@ export const getMarketplaceCombinedForHomeApi = async (req, res) => {
         "productName description subCategory price discountedprice images variants ratings productType"
       )
       .lean();
-
+      
     // Step 3: Add discount percentage for sorting
     marketplaceProducts = marketplaceProducts.map((p) => {
       let discountPercent = 0;
