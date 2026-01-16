@@ -36,7 +36,7 @@ const app = express();
 const PORT = process.env.PORT || 3300;
 
 const { MongoDBConnectDB } = db;
- 
+
 const httpServer = http.createServer(app);
 initializeSocket(httpServer);
 
@@ -45,21 +45,30 @@ const startServer = async () => {
     await MongoDBConnectDB();
     app.use(json({ limit: "10mb" }));
     app.use(urlencoded({ extended: true }));
-    // app.use(cors());
-    app.use(cors({
-  origin: ["http://192.168.1.68:3001","http://192.168.1.68:3000","http://localhost:3001","http://localhost:3000", "https://vendor.souqx.online", "https://admin.souqx.online", 
-    "http://localhost:8071"
-  ],
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-}));
+     app.use(cors());
+    // app.use(
+    //   cors({
+    //     origin: [
+    //       "http://192.168.1.68:3001",
+    //       "http://localhost:8073",
+    //       "http://192.168.1.68:3000",
+    //       "http://localhost:3001",
+    //       "http://localhost:3000",
+    //       "https://vendor.souqx.online",
+    //       "https://admin.souqx.online",
+    //       "http://localhost:8071",
+    //     ],
+    //     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    //     allowedHeaders: ["Content-Type", "Authorization"],
+    //   })
+    // );
     app.use(express.static(path.join(__dirname, "public")));
     app.use("/api/v1", router);
     Swagger.swaggerRoute(app);
     app.get("/health", (req, res) => {
       res.json({ status: "OK", env: process.env.NODE_ENV });
     });
-    httpServer.listen(PORT, "0.0.0.0",() => {
+    httpServer.listen(PORT, "0.0.0.0", () => {
       console.log("**************************************");
       console.log(`Server + Socket.IO running on port ${PORT}`);
       console.log(`Environment: ${process.env.NODE_ENV}`);

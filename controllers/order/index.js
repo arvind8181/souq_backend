@@ -154,9 +154,11 @@ export const createOrder = async (req, res) => {
           to: {
             latitude: customer.coordinates.latitude,
             longitude: customer.coordinates.longitude,
-            street: `${customer.buildingNo}, Apt ${customer.apartmentNo
-              }, Floor ${customer.floorNo}, ${customer.street || ""}, ${customer.landmark || ""
-              }`.trim(),
+            street: `${customer.buildingNo}, Apt ${
+              customer.apartmentNo
+            }, Floor ${customer.floorNo}, ${customer.street || ""}, ${
+              customer.landmark || ""
+            }`.trim(),
             city: customer.city,
             state: customer.state,
             country: customer.country || "",
@@ -258,8 +260,9 @@ export const createOrder = async (req, res) => {
       grandTotal,
       dropLatitude: customer.coordinates.latitude,
       dropLongitude: customer.coordinates.longitude,
-      dropStreet: `${customer.buildingNo}, Apt ${customer.apartmentNo}, Floor ${customer.floorNo
-        }, ${customer.street || ""}, ${customer.landmark || ""}`.trim(),
+      dropStreet: `${customer.buildingNo}, Apt ${customer.apartmentNo}, Floor ${
+        customer.floorNo
+      }, ${customer.street || ""}, ${customer.landmark || ""}`.trim(),
       dropCity: customer.city,
       dropState: customer.state,
       dropCountry: customer.country || "",
@@ -468,7 +471,8 @@ export const updateStatus = async (req, res) => {
         location: {
           $nearSphere: {
             $geometry: { type: "Point", coordinates: pickupCoords },
-            $maxDistance: 1000000, // ~10km
+            // $maxDistance: 1000000, // ~10km
+            $maxDistance: 100000000, // ~10km
           },
         },
       };
@@ -588,7 +592,6 @@ export const updateStatus = async (req, res) => {
   }
 };
 
-
 //  Get vendor orders
 export const getVendorOrders = async (req, res) => {
   try {
@@ -613,12 +616,12 @@ export const getVendorOrders = async (req, res) => {
           vendorId: vendorId,
           ...(status
             ? {
-              status: Array.isArray(status)
-                ? { $in: status }
-                : typeof status === "string" && status.includes(",")
+                status: Array.isArray(status)
+                  ? { $in: status }
+                  : typeof status === "string" && status.includes(",")
                   ? { $in: status.split(",").map((s) => s.trim()) }
                   : status,
-            }
+              }
             : {}),
         },
       },
@@ -660,10 +663,10 @@ export const getVendorOrders = async (req, res) => {
       // For marketplace, vendor only relates to first leg
       const vendorLegs = order.legs
         ? order.legs.filter(
-          (l) =>
-            l.from?.city === vendorBlock.pickupCity ||
-            l.from?.street === vendorBlock.pickupStreet
-        )
+            (l) =>
+              l.from?.city === vendorBlock.pickupCity ||
+              l.from?.street === vendorBlock.pickupStreet
+          )
         : [];
 
       // --- Map drivers from those legs ---
@@ -768,7 +771,6 @@ export const getVendorOrders = async (req, res) => {
     return serverError(res, err, "Failed to retrieve vendor orders.");
   }
 };
-
 
 // reassign Driver
 export const reassignDriver = async (req, res) => {
@@ -1080,6 +1082,8 @@ export const getDriverOrderHistory = async (req, res) => {
       );
     }
 
+    //  console.log(orders ,"=======orders==============");
+
     const deliveredOrders = [];
     const cancelledOrders = [];
 
@@ -1169,8 +1173,7 @@ export const getDriverOrderHistory = async (req, res) => {
 
         // 🔹 Calculate driverEarnings
         let driverEarnings = 0;
-        const normalizedDriverType =
-          driver.driverType?.replace("-", "_") || "";
+        const normalizedDriverType = driver.driverType?.replace("-", "_") || "";
 
         const commissionConfig = await DriverCommission.findOne({
           driverType: normalizedDriverType,
@@ -1179,7 +1182,10 @@ export const getDriverOrderHistory = async (req, res) => {
 
         if (commissionConfig) {
           driverEarnings = parseFloat(
-            ((order.grandTotal * commissionConfig.commissionPercentage) / 100).toFixed(2)
+            (
+              (order.grandTotal * commissionConfig.commissionPercentage) /
+              100
+            ).toFixed(2)
           );
         }
 
@@ -1227,7 +1233,6 @@ export const getDriverOrderHistory = async (req, res) => {
     return serverError(res, err, "Failed to fetch driver order history.");
   }
 };
-
 
 // Return Orders...
 
@@ -1372,7 +1377,6 @@ export const confirmVendorReceipt = async (req, res) => {
     return JsonRes.serverError(res, error, "Failed to confirm vendor receipt.");
   }
 };
-
 
 // Get Acive Orders for Customer
 export const getActiveOrdersForCustomer = async (req, res) => {
@@ -1791,7 +1795,10 @@ export const getAdminFinancialBreakdown = async (req, res) => {
 
           if (commissionConfig) {
             driverEarnings = parseFloat(
-              ((grandTotal * commissionConfig.commissionPercentage) / 100).toFixed(2)
+              (
+                (grandTotal * commissionConfig.commissionPercentage) /
+                100
+              ).toFixed(2)
             );
           }
         }
@@ -1861,8 +1868,6 @@ export const getAdminFinancialBreakdown = async (req, res) => {
   }
 };
 
-
-
 // vendor financial breakdown
 export const getVendorFinancialBreakdown = async (req, res) => {
   try {
@@ -1907,7 +1912,9 @@ export const getVendorFinancialBreakdown = async (req, res) => {
       let driverEarnings = 0;
 
       if (deliveredLeg && deliveredLeg.driverId) {
-        const driverDetail = await DriverDetail.findById(deliveredLeg.driverId).lean();
+        const driverDetail = await DriverDetail.findById(
+          deliveredLeg.driverId
+        ).lean();
 
         if (driverDetail) {
           const normalizedDriverType =
@@ -1920,7 +1927,10 @@ export const getVendorFinancialBreakdown = async (req, res) => {
 
           if (commissionConfig) {
             driverEarnings = parseFloat(
-              ((grandTotal * commissionConfig.commissionPercentage) / 100).toFixed(2)
+              (
+                (grandTotal * commissionConfig.commissionPercentage) /
+                100
+              ).toFixed(2)
             );
           }
         }
@@ -1986,11 +1996,13 @@ export const getVendorFinancialBreakdown = async (req, res) => {
     );
   } catch (err) {
     console.error("Error in vendor financial breakdown:", err);
-    return serverError(res, err, "Failed to fetch vendor financial breakdown stage.");
+    return serverError(
+      res,
+      err,
+      "Failed to fetch vendor financial breakdown stage."
+    );
   }
 };
-
-
 
 // driver financial breakdown
 export const getDriverFinancialBreakdown = async (req, res) => {
@@ -2046,9 +2058,10 @@ export const getDriverFinancialBreakdown = async (req, res) => {
 
         if (commissionConfig) {
           driverEarnings = parseFloat(
-            ((grandTotal * commissionConfig.commissionPercentage) / 100).toFixed(
-              2
-            )
+            (
+              (grandTotal * commissionConfig.commissionPercentage) /
+              100
+            ).toFixed(2)
           );
         }
 
@@ -2057,7 +2070,9 @@ export const getDriverFinancialBreakdown = async (req, res) => {
         if (vendorBlock.items?.length) {
           const firstProduct = vendorBlock.items[0].productId;
           if (firstProduct?.category) {
-            const category = await Category.findById(firstProduct.category).lean();
+            const category = await Category.findById(
+              firstProduct.category
+            ).lean();
             if (category) {
               const rate = category.commission || 0;
               adminCommission = parseFloat(
@@ -2133,5 +2148,3 @@ export const getDriverFinancialBreakdown = async (req, res) => {
     return serverError(res, err, "Failed to fetch driver financial breakdown.");
   }
 };
-
-
