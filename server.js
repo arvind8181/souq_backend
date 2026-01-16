@@ -36,7 +36,7 @@ const app = express();
 const PORT = process.env.PORT || 3300;
 
 const { MongoDBConnectDB } = db;
- 
+
 const httpServer = http.createServer(app);
 initializeSocket(httpServer);
 
@@ -59,7 +59,7 @@ const startServer = async () => {
     app.get("/health", (req, res) => {
       res.json({ status: "OK", env: process.env.NODE_ENV });
     });
-    httpServer.listen(PORT, "0.0.0.0",() => {
+    httpServer.listen(PORT, "0.0.0.0", () => {
       console.log("**************************************");
       console.log(`Server + Socket.IO running on port ${PORT}`);
       console.log(`Environment: ${process.env.NODE_ENV}`);

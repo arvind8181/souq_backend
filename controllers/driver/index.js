@@ -27,6 +27,8 @@ const {
 
 export const driverDocUpload = async (req, res) => {
   try {
+
+    console.log("==========ccccccccccccccccc=====================");
     /*──────────────────── Auth check ────────────────────*/
     const userId = req.user?._id || req.user?.id;
     if (!userId) return unauthorized(res, null, "Not authenticated");

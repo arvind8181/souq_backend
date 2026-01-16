@@ -35,6 +35,7 @@ const {
   unauthorized,
   notFound,
 } = JsonRes;
+
 export const createAccount = async (req, res) => {
   try {
     const { email, password, role, fullName = "" } = req.body;
@@ -219,13 +220,14 @@ export const createAccount = async (req, res) => {
 export const loginController = async (req, res) => {
   try {
     const sessionUser = req.user;
-
+    
     if (!sessionUser) {
       return unauthorized(res, null, "Access denied. User not found.");
     }
-
+    
     // Step 1: Extract device info from req.body
     const { deviceToken, deviceType } = req.body;
+    console.log(sessionUser ,"sessionUser===================",req.body);
 
     if (deviceToken && deviceType) {
       // Step 2: Update loginToken field in User collection
