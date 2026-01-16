@@ -14,14 +14,28 @@ const promotionSchema = new Schema(
       default: null,
       required: false,
     },
+    scopeType: {
+      type: String,
+      enum: ["category", "product"],
+      default: null,
+      required: false,
+    },
     title: { type: String, required: true },
     description: String,
-    discountPercentage: { type: Number, required: true, min: 1, max: 100 },
-    promotionCode: { type: String },
+    categoryIds: [
+      { type: Schema.Types.ObjectId, ref: "Category", required: true },
+    ],
     productIds: [
       { type: Schema.Types.ObjectId, ref: "Product", required: true },
     ],
-    hours: { type: Number, default: null }, // Only for flash-sale
+    discountValue: { type: Number, required: true },
+    discountType: {
+      type: String,
+      enum: ["Fixed", "Percentage"],
+      required: true,
+    },
+    promotionCode: { type: String },
+    hours: { type: Number, default: null },
     startDate: Date,
     endDate: Date,
     isDeleted: { type: Boolean, default: false },

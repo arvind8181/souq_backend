@@ -26,19 +26,22 @@ const {
 export const addPromotion = async (req, res) => {
   try {
     const vendorId = req.user.id;
-
     const {
       title,
       description,
-      discountPercentage,
+      discountType,
+      discountValue,
+      scopeType,
       type,
       productIds,
       promotionCode,
       paidFlag,
+      categoryIds,
       startDate,
       endDate,
       hours,
     } = req.body;
+
     if (type === "promotion" && promotionCode) {
       const exists = await Promotion.findOne({
         vendorId,
@@ -51,10 +54,13 @@ export const addPromotion = async (req, res) => {
     const promotion = new Promotion({
       vendorId,
       title,
+      scopeType,
       description,
-      discountPercentage,
       type,
+      categoryIds,
       productIds,
+      discountType,
+      discountValue,
       paidFlag: paidFlag || null,
       hours: type === "flash-sale" ? hours : null,
       promotionCode: promotionCode ? promotionCode.toUpperCase() : undefined,
@@ -91,7 +97,7 @@ export const getPromotions = async (req, res) => {
 
     // apply type filter
     if (type) {
-      query.type = { $regex: `^${type}$`, $options: "i" }; 
+      query.type = { $regex: `^${type}$`, $options: "i" };
     }
 
     // ───── fetch promotions with filters ─────
@@ -103,6 +109,10 @@ export const getPromotions = async (req, res) => {
           path: "category",
           select: "category subCategory color commission images variants",
         },
+      })
+      .populate({
+        path: "categoryIds",
+        select: "category",
       });
 
     // ───── enrich product images with presigned urls ─────
@@ -161,25 +171,66 @@ export const updatePromotion = async (req, res) => {
     const {
       title,
       description,
-      discountPercentage,
+      discountType,
+      discountValue,
+      scopeType,
       type,
       productIds,
+      categoryIds,
+      promotionCode,
+      paidFlag,
       startDate,
       endDate,
+      hours,
     } = req.body;
 
     const promotion = await Promotion.findOne({ _id: id, vendorId });
 
-    if (!promotion) return notFound(res, null, "Promotion not found.");
+    if (!promotion) {
+      return notFound(res, null, "Promotion not found.");
+    }
 
-    promotion.title = title ?? promotion.title;
-    promotion.description = description ?? promotion.description;
-    promotion.discountPercentage =
-      discountPercentage ?? promotion.discountPercentage;
-    promotion.type = type ?? promotion.type;
-    promotion.productIds = productIds ?? promotion.productIds;
-    promotion.startDate = startDate ? new Date(startDate) : promotion.startDate;
-    promotion.endDate = endDate ? new Date(endDate) : promotion.endDate;
+    // -------- BASIC FIELDS --------
+    if (title !== undefined) promotion.title = title;
+    if (description !== undefined) promotion.description = description;
+    if (promotionCode !== undefined) promotion.promotionCode = promotionCode;
+    if (paidFlag !== undefined) promotion.paidFlag = paidFlag;
+    if (type !== undefined) promotion.type = type;
+
+    // -------- DISCOUNT --------
+    if (discountType === "Percentage") {
+      promotion.discountPercentage = discountValue;
+      promotion.fixedPrice = null;
+    }
+
+    if (discountType === "Fixed") {
+      promotion.fixedPrice = discountValue;
+      promotion.discountPercentage = null;
+    }
+
+    // -------- SCOPE HANDLING (IMPORTANT) --------
+    if (scopeType === "product") {
+      promotion.productIds = productIds;
+      promotion.categoryIds = [];
+    }
+
+    if (scopeType === "category") {
+      promotion.categoryIds = categoryIds;
+      promotion.productIds = [];
+    }
+
+    // -------- DATE & FLASH-SALE LOGIC --------
+    if (type === "flash-sale") {
+      promotion.hours = hours;
+      promotion.endDate = null;
+      promotion.startDate = startDate
+        ? new Date(startDate)
+        : promotion.startDate;
+    } else {
+      promotion.hours = null;
+      if (startDate) promotion.startDate = new Date(startDate);
+      if (endDate) promotion.endDate = new Date(endDate);
+    }
 
     await promotion.save();
 

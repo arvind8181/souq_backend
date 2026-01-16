@@ -2,7 +2,6 @@ import express from "express";
 import * as PromotionController from "../controllers/promotion/index.js";
 import {
   verifyAdmin,
-  verifyCustomer,
   verifyVendor,
 } from "../middleware/auth.js";
 import PromotionValidate from "../controllers/promotion/validation.js";
@@ -14,7 +13,9 @@ router.post(
   PromotionValidate.createPromotion,
   PromotionController.addPromotion
 );
+
 router.get("/promotions", verifyVendor, PromotionController.getPromotions);
+
 router.put(
   "/promotion/:id",
   verifyVendor,
