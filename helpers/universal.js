@@ -94,14 +94,12 @@ export const compressUploadedImages = async (req, _res, next) => {
 export const extractS3Key = async (url) => {
   try {
     const urlObj = new URL(url);
-    const pathname = urlObj.pathname; // e.g., "/local/img/product/..."
+    const pathname = urlObj.pathname; 
 
-    // Remove leading slash and split into parts
     const segments = pathname.startsWith("/")
       ? pathname.slice(1).split("/")
       : pathname.split("/");
 
-    // Remove the first segment (local, production, staging, etc.)
     segments.shift();
     const key = segments.join("/");
     return key;

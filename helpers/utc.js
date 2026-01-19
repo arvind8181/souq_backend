@@ -1,13 +1,13 @@
 import moment from "moment-timezone";
 export const convertTimeToUTC = (timeStr) => {
-  if (!timeStr) return null; // ✅ correct variable
-  const d = new Date(timeStr); // ✅ parse it
+  if (!timeStr) return null; 
+  const d = new Date(timeStr); 
 
   if (isNaN(d)) {
     throw new Error("Invalid ISO date-time received");
   }
 
-  return d; // Mongoose will treat this as a UTC instant
+  return d; 
 };
 export const getUTCRangeForLocalDate = (date, timezone = "UTC") => {
   const startUTC = moment
