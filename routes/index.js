@@ -16,6 +16,7 @@ const routeFiles = fs.readdirSync(routesPath).filter(
 async function loadRoutes() {
   await Promise.all(routeFiles.map(async (file) => {
     try {
+
       const routeName = path.basename(file, ".js");
       const filePath = path.join(routesPath, file);
       const { default: routeModule } = await import(filePath);

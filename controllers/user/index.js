@@ -220,11 +220,11 @@ export const createAccount = async (req, res) => {
 export const loginController = async (req, res) => {
   try {
     const sessionUser = req.user;
-    
+       console.log(sessionUser ,"sessionUser===================",req.body);
     if (!sessionUser) {
       return unauthorized(res, null, "Access denied. User not found.");
     }
-    
+   
     // Step 1: Extract device info from req.body
     const { deviceToken, deviceType } = req.body;
     console.log(sessionUser ,"sessionUser===================",req.body);
@@ -330,14 +330,15 @@ export const loginController = async (req, res) => {
 
 export const forgotPasswordController = async (req, res) => {
   try {
+    console.log(req.body ,"email====================req.body============");
     const email = req.body?.email || req.user?.email;
     const user = req.user;
     if (!email) return badRequest(res, null, "Email is required.");
 
+
     // Generate OTP and expiration
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit
     const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 min
-    const otpExpiresAtDate = new Date(Date.now() + 10 * 60 * 1000);
 
     // Generate a secure JWT token (valid for 10 min)
     const token = jwt.sign(

@@ -15,7 +15,7 @@ console.log("ENV CHECK:", {
 
 console.log(
   "ENV FILE EXISTS:",
-  fs.existsSync(path.join(__dirname, ".env.staging"))
+  fs.existsSync(path.join(__dirname, ".env.staging")),
 );
 
 console.log("RAW ENV CHECK:", {
@@ -45,14 +45,37 @@ const startServer = async () => {
     await MongoDBConnectDB();
     app.use(json({ limit: "10mb" }));
     app.use(urlencoded({ extended: true }));
-    // app.use(cors());
-    app.use(cors({
-  origin: ["http://192.168.1.68:3001","http://192.168.1.68:3000","http://localhost:3001","http://localhost:3000", "http://localhost:3002", "https://vendor.souqx.online", "https://admin.souqx.online", 
-    "http://localhost:8071"
-  ],
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-}));
+    app.use(cors());
+    // app.use(
+    //   cors({
+    //     origin: [
+    //       "http://192.168.1.68:3001",
+    //       "http://192.168.1.68:3000",
+    //       "http://localhost:3001",
+    //       "http://localhost:3000",
+    //       "http://localhost:3002",
+    //       "https://vendor.souqx.online",
+    //       "https://admin.souqx.online",
+    //       "http://localhost:8071",
+    //     ],
+    //     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    //     allowedHeaders: ["Content-Type", "Authorization"],
+    //   })
+    // );
+    app.use((req, res, next) => {
+      const start = Date.now();
+
+      res.on("finish", () => {
+        const duration = Date.now() - start;
+        console.log(
+          `[API] ${req.method} ${req.originalUrl} | ${res.statusCode} | ${duration}ms`,
+        );
+      });
+
+      next();
+    });
+    
+
     app.use(express.static(path.join(__dirname, "public")));
     app.use("/api/v1", router);
     Swagger.swaggerRoute(app);

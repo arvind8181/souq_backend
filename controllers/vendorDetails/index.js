@@ -83,23 +83,24 @@ export const getPendingVendors = async (req, res) => {
       })
     );
 
-    return success(res, {
-      vendors: pendingVendors,
-      pagination: {
-        total: totalCount,
-        page: pageNumber,
-        limit: limitNumber,
-        totalPages: Math.ceil(totalCount / limitNumber),
+    return success(
+      res,
+      {
+        vendors: pendingVendors,
+        pagination: {
+          total: totalCount,
+          page: pageNumber,
+          limit: limitNumber,
+          totalPages: Math.ceil(totalCount / limitNumber),
+        },
       },
-    }, "Fetched all pending vendors successfully.");
+      "Fetched all pending vendors successfully."
+    );
   } catch (error) {
     console.error("Error fetching pending vendors:", error);
     return serverError(res, error, "Failed to fetch pending vendors.");
   }
 };
-
-
-
 
 export const updateVendorStatus = async (req, res) => {
   const { vendorId, status, deleted } = req.body;
@@ -193,8 +194,9 @@ export const updateVendorStatus = async (req, res) => {
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
             <div style="background: #FF9800; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
-              <h2 style="color: white; margin: 0;">Vendor Account ${deleted ? "Deactivated" : "Reactivated"
-          }</h2>
+              <h2 style="color: white; margin: 0;">Vendor Account ${
+                deleted ? "Deactivated" : "Reactivated"
+              }</h2>
             </div>
             <div style="padding: 20px; background: #f9f9f9; border-radius: 0 0 8px 8px;">
               <p>Hello ${user.name || ""},</p>
@@ -208,7 +210,8 @@ export const updateVendorStatus = async (req, res) => {
       return success(
         res,
         { userId: user._id, deleted: user.deleted },
-        `Vendor account has been ${deleted ? "deactivated" : "reactivated"
+        `Vendor account has been ${
+          deleted ? "deactivated" : "reactivated"
         } successfully.`
       );
     }
@@ -370,16 +373,16 @@ export const getAllVendors = async (req, res) => {
       },
       ...(search
         ? [
-          {
-            $match: {
-              $or: [
-                { "user.email": { $regex: search, $options: "i" } },
-                { businessName: { $regex: search, $options: "i" } },
-                { ownerName: { $regex: search, $options: "i" } },
-              ],
+            {
+              $match: {
+                $or: [
+                  { "user.email": { $regex: search, $options: "i" } },
+                  { businessName: { $regex: search, $options: "i" } },
+                  { ownerName: { $regex: search, $options: "i" } },
+                ],
+              },
             },
-          },
-        ]
+          ]
         : []),
       { $sort: sortOptions },
       { $skip: skip },
@@ -403,16 +406,16 @@ export const getAllVendors = async (req, res) => {
       { $unwind: "$user" },
       ...(search
         ? [
-          {
-            $match: {
-              $or: [
-                { "user.email": { $regex: search, $options: "i" } },
-                { businessName: { $regex: search, $options: "i" } },
-                { ownerName: { $regex: search, $options: "i" } },
-              ],
+            {
+              $match: {
+                $or: [
+                  { "user.email": { $regex: search, $options: "i" } },
+                  { businessName: { $regex: search, $options: "i" } },
+                  { ownerName: { $regex: search, $options: "i" } },
+                ],
+              },
             },
-          },
-        ]
+          ]
         : []),
       { $count: "total" },
     ];
@@ -988,7 +991,6 @@ export const updateVendorSubscription = async (req, res) => {
   }
 };
 
-
 // Get all products 15minutes and MarketPlace
 export const getAllProductsOfMinutesAndMarketPlace = async (req, res) => {
   try {
@@ -1188,7 +1190,6 @@ export const getAllProductsOfMinutesAndMarketPlace = async (req, res) => {
   }
 };
 
-
 // combined three api's (Home page api)
 export const getMarketplaceCombinedForHomeApi = async (req, res) => {
   try {
@@ -1212,16 +1213,16 @@ export const getMarketplaceCombinedForHomeApi = async (req, res) => {
     const response = {
       minutesProducts: {
         vendors: [],
-        message: ""
+        message: "",
       },
       marketplaceRecommendations: {
         products: [],
-        message: ""
+        message: "",
       },
       minutesRecommendations: {
         products: [],
-        message: ""
-      }
+        message: "",
+      },
     };
 
     // Get customer details once for reuse
@@ -1247,7 +1248,9 @@ export const getMarketplaceCombinedForHomeApi = async (req, res) => {
               Array.isArray(v.location?.coordinates) &&
               v.location.coordinates.length === 2
           )
-          .map((v) => `${v.location.coordinates[1]},${v.location.coordinates[0]}`)
+          .map(
+            (v) => `${v.location.coordinates[1]},${v.location.coordinates[0]}`
+          )
           .join("|");
 
         if (destinations) {
@@ -1319,7 +1322,9 @@ export const getMarketplaceCombinedForHomeApi = async (req, res) => {
                     plainProduct.variants = await Promise.all(
                       plainProduct.variants.map(async (variant) => {
                         if (variant.images?.length > 0) {
-                          variant.images = await getPresignedImageUrls(variant.images);
+                          variant.images = await getPresignedImageUrls(
+                            variant.images
+                          );
                         }
                         return variant;
                       })
@@ -1337,46 +1342,51 @@ export const getMarketplaceCombinedForHomeApi = async (req, res) => {
 
                   if (!vendorProducts.length) return null;
 
-                  const groupedByCategory = vendorProducts.reduce(async (accPromise, product) => {
-                    const acc = await accPromise;
-                    let categoryName =
-                      product.category && typeof product.category === "object"
-                        ? product.category.category
-                        : product.category;
+                  const groupedByCategory = vendorProducts.reduce(
+                    async (accPromise, product) => {
+                      const acc = await accPromise;
+                      let categoryName =
+                        product.category && typeof product.category === "object"
+                          ? product.category.category
+                          : product.category;
 
-                    if (categoryName) {
-                      if (!acc[categoryName]) acc[categoryName] = [];
-                      
-                      const isInWishlist = favoriteProductIds.includes(
-                        product._id.toString()
-                      );
+                      if (categoryName) {
+                        if (!acc[categoryName]) acc[categoryName] = [];
 
-                      // Check if user has reviewed this product
-                      let isReviewed = false;
-                      if (customer) {
-                        const review = await Review.findOne({
-                          productId: product._id,
-                          userId: customer._id,
-                          deleted: false
+                        const isInWishlist = favoriteProductIds.includes(
+                          product._id.toString()
+                        );
+
+                        // Check if user has reviewed this product
+                        let isReviewed = false;
+                        if (customer) {
+                          const review = await Review.findOne({
+                            productId: product._id,
+                            userId: customer._id,
+                            deleted: false,
+                          });
+                          isReviewed = !!review;
+                        }
+
+                        acc[categoryName].push({
+                          ...product,
+                          isInWishlist,
+                          isReviewed,
                         });
-                        isReviewed = !!review;
                       }
+                      return acc;
+                    },
+                    Promise.resolve({})
+                  );
 
-                      acc[categoryName].push({ 
-                        ...product, 
-                        isInWishlist,
-                        isReviewed 
-                      });
-                    }
-                    return acc;
-                  }, Promise.resolve({}));
-
-                  return groupedByCategory.then(resolvedGrouped => {
-                    const categories = Object.keys(resolvedGrouped).map((cat) => ({
-                      category: cat,
-                      totalProducts: resolvedGrouped[cat].length,
-                      products: resolvedGrouped[cat],
-                    }));
+                  return groupedByCategory.then((resolvedGrouped) => {
+                    const categories = Object.keys(resolvedGrouped).map(
+                      (cat) => ({
+                        category: cat,
+                        totalProducts: resolvedGrouped[cat].length,
+                        products: resolvedGrouped[cat],
+                      })
+                    );
 
                     return {
                       vendorId: vendor._id,
@@ -1400,22 +1410,27 @@ export const getMarketplaceCombinedForHomeApi = async (req, res) => {
               if (resolvedResponseData.length > 0) {
                 response.minutesProducts.vendors = resolvedResponseData;
               } else {
-                response.minutesProducts.message = "No vendors found within 20 minutes having available products.";
+                response.minutesProducts.message =
+                  "No vendors found within 20 minutes having available products.";
               }
             } else {
-              response.minutesProducts.message = "No vendors found within 20-minute delivery radius.";
+              response.minutesProducts.message =
+                "No vendors found within 20-minute delivery radius.";
             }
           } else {
-            response.minutesProducts.message = "Failed to fetch distance data from Google API.";
+            response.minutesProducts.message =
+              "Failed to fetch distance data from Google API.";
           }
         } else {
-          response.minutesProducts.message = "Vendor locations invalid or missing.";
+          response.minutesProducts.message =
+            "Vendor locations invalid or missing.";
         }
       } else {
         response.minutesProducts.message = "No approved vendors found.";
       }
     } else {
-      response.minutesProducts.message = "Valid latitude and longitude are required";
+      response.minutesProducts.message =
+        "Valid latitude and longitude are required";
     }
 
     // =====================================
@@ -1426,7 +1441,7 @@ export const getMarketplaceCombinedForHomeApi = async (req, res) => {
     const marketplaceFilter = {
       deleted: false,
       isAvailable: true,
-       productType: 2, // Marketplace
+      productType: 2, // Marketplace
       "ratings.overall": { $gt: 0 }, // only products with ratings
     };
 
@@ -1436,7 +1451,7 @@ export const getMarketplaceCombinedForHomeApi = async (req, res) => {
         "productName description subCategory price discountedprice images variants ratings productType"
       )
       .lean();
-      
+
     // Step 3: Add discount percentage for sorting
     marketplaceProducts = marketplaceProducts.map((p) => {
       let discountPercent = 0;
@@ -1496,7 +1511,7 @@ export const getMarketplaceCombinedForHomeApi = async (req, res) => {
           const review = await Review.findOne({
             productId: product._id,
             userId: customer._id,
-            deleted: false
+            deleted: false,
           });
           isReviewed = !!review;
         }
@@ -1514,7 +1529,8 @@ export const getMarketplaceCombinedForHomeApi = async (req, res) => {
     );
 
     response.marketplaceRecommendations.products = marketplaceProducts;
-    response.marketplaceRecommendations.message = "Recommended products for marketplace fetched successfully.";
+    response.marketplaceRecommendations.message =
+      "Recommended products for marketplace fetched successfully.";
 
     // =====================================
     // 3. GET RECOMMENDED PRODUCTS FOR MINUTES
@@ -1530,8 +1546,14 @@ export const getMarketplaceCombinedForHomeApi = async (req, res) => {
       if (minutesVendors.length > 0) {
         // Step 2: Build destinations for Google Distance Matrix
         const minutesDestinations = minutesVendors
-          .filter((v) => Array.isArray(v.location?.coordinates) && v.location.coordinates.length === 2)
-          .map((v) => `${v.location.coordinates[1]},${v.location.coordinates[0]}`)
+          .filter(
+            (v) =>
+              Array.isArray(v.location?.coordinates) &&
+              v.location.coordinates.length === 2
+          )
+          .map(
+            (v) => `${v.location.coordinates[1]},${v.location.coordinates[0]}`
+          )
           .join("|");
 
         if (minutesDestinations) {
@@ -1545,16 +1567,20 @@ export const getMarketplaceCombinedForHomeApi = async (req, res) => {
             const minutesResults = minutesData.rows[0].elements;
 
             // Step 3: Filter vendors within 15 minutes
-            const minutesFilteredVendors = minutesVendors.reduce((acc, vendor, index) => {
-              const travel = minutesResults[index];
-              if (travel?.status !== "OK") return acc;
+            const minutesFilteredVendors = minutesVendors.reduce(
+              (acc, vendor, index) => {
+                const travel = minutesResults[index];
+                if (travel?.status !== "OK") return acc;
 
-              const travelSeconds = travel.duration_in_traffic?.value || travel.duration?.value;
-              if (travelSeconds && travelSeconds / 60 <= 15) {
-                acc.push(vendor.userId);
-              }
-              return acc;
-            }, []);
+                const travelSeconds =
+                  travel.duration_in_traffic?.value || travel.duration?.value;
+                if (travelSeconds && travelSeconds / 60 <= 15) {
+                  acc.push(vendor.userId);
+                }
+                return acc;
+              },
+              []
+            );
 
             if (minutesFilteredVendors.length > 0) {
               // Step 4: Fetch products only from those vendors
@@ -1574,7 +1600,8 @@ export const getMarketplaceCombinedForHomeApi = async (req, res) => {
               minutesProducts = minutesProducts.map((p) => {
                 let discountPercent = 0;
                 if (p.price && p.discountedprice) {
-                  discountPercent = ((p.price - p.discountedprice) / p.price) * 100;
+                  discountPercent =
+                    ((p.price - p.discountedprice) / p.price) * 100;
                 }
                 return { ...p, discountPercent };
               });
@@ -1601,7 +1628,9 @@ export const getMarketplaceCombinedForHomeApi = async (req, res) => {
                   const updatedVariants = await Promise.all(
                     (product.variants || []).map(async (variant) => {
                       if (variant.images && variant.images.length > 0) {
-                        const urls = await getPresignedImageUrls(variant.images);
+                        const urls = await getPresignedImageUrls(
+                          variant.images
+                        );
                         return { ...variant, images: urls };
                       }
                       return variant;
@@ -1629,7 +1658,7 @@ export const getMarketplaceCombinedForHomeApi = async (req, res) => {
                     const review = await Review.findOne({
                       productId: product._id,
                       userId: customer._id,
-                      deleted: false
+                      deleted: false,
                     });
                     isReviewed = !!review;
                   }
@@ -1647,31 +1676,38 @@ export const getMarketplaceCombinedForHomeApi = async (req, res) => {
               );
 
               response.minutesRecommendations.products = minutesProducts;
-              response.minutesRecommendations.message = "Recommended products within 15-minutes fetched successfully.";
+              response.minutesRecommendations.message =
+                "Recommended products within 15-minutes fetched successfully.";
             } else {
-              response.minutesRecommendations.message = "No vendors found within 15-minute delivery radius.";
+              response.minutesRecommendations.message =
+                "No vendors found within 15-minute delivery radius.";
             }
           } else {
-            response.minutesRecommendations.message = "Failed to fetch distance data from Google API.";
+            response.minutesRecommendations.message =
+              "Failed to fetch distance data from Google API.";
           }
         } else {
-          response.minutesRecommendations.message = "Vendor locations invalid or missing.";
+          response.minutesRecommendations.message =
+            "Vendor locations invalid or missing.";
         }
       } else {
         response.minutesRecommendations.message = "No approved vendors found.";
       }
     } else {
-      response.minutesRecommendations.message = "Valid latitude and longitude are required";
+      response.minutesRecommendations.message =
+        "Valid latitude and longitude are required";
     }
 
     return res.json(response);
-
   } catch (err) {
-    console.error("Error in combined products controller:", err.message, err.stack);
+    console.error(
+      "Error in combined products controller:",
+      err.message,
+      err.stack
+    );
     return res.status(500).json({
       message: "Server error while fetching products and recommendations",
-      error: err.message, 
+      error: err.message,
     });
   }
 };
-
