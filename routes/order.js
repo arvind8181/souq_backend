@@ -13,9 +13,6 @@ import {
 
 
 const router = Router();
-
-
-
 /*************************** Post Routes **************************************************************/
 router.post(`/create`, verifyCustomer, OrderValidate.create, OrderController.createOrder);
 router.post(`/active`, verifyAdmin, OrderController.getActiveOrders);

@@ -56,8 +56,6 @@ export const updateBoost = async (req, res) => {
 
     const { boost_type, scope_type, scope_ids, duration, price, start_date } =
       req.body;
-
-    // ❗ Prevent conflict EXCEPT current boost
     const conflictBoost = await Boost.findOne({
       _id: { $ne: id },
       vendorId,
@@ -70,8 +68,6 @@ export const updateBoost = async (req, res) => {
     if (conflictBoost) {
       return badRequest(res, "A boost already exists for selected scope.");
     }
-
-    // Dates
     const startDateObj = new Date(start_date);
     const endDateObj = new Date(startDateObj);
     endDateObj.setDate(endDateObj.getDate() + duration.value);
@@ -88,7 +84,7 @@ export const updateBoost = async (req, res) => {
         end_date: endDateObj,
         status: "scheduled",
       },
-      { new: true }, // return updated doc
+      { new: true }, 
     );
 
     if (!updatedBoost) {
