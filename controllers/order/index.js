@@ -45,7 +45,7 @@ export const createOrder = async (req, res) => {
         return notFound(
           res,
           null,
-          `Product with ID ${item.productId} not found.`
+          `Product with ID ${item.productId} not found.`,
         );
       }
       if (product.productType !== type) continue;
@@ -53,14 +53,14 @@ export const createOrder = async (req, res) => {
         return badRequest(
           res,
           null,
-          `Cash on delivery not allowed for ${product.productName}.`
+          `Cash on delivery not allowed for ${product.productName}.`,
         );
       }
       if (product.stockQuantity < item.quantity) {
         return badRequest(
           res,
           null,
-          `Only ${product.stockQuantity} item(s) left for ${product.productName}.`
+          `Only ${product.stockQuantity} item(s) left for ${product.productName}.`,
         );
       }
       filteredItems.push(item);
@@ -70,7 +70,7 @@ export const createOrder = async (req, res) => {
       return badRequest(
         res,
         null,
-        `No products found in your cart for type: ${type}.`
+        `No products found in your cart for type: ${type}.`,
       );
     }
 
@@ -78,7 +78,7 @@ export const createOrder = async (req, res) => {
     const totalItems = filteredItems.reduce((sum, i) => sum + i.quantity, 0);
     const subTotal = filteredItems.reduce(
       (sum, i) => sum + (i.totalPrice || 0),
-      0
+      0,
     );
 
     // 🔹 Group by vendor
@@ -130,7 +130,7 @@ export const createOrder = async (req, res) => {
             totalPrice: item.totalPrice,
           })),
         };
-      })
+      }),
     );
 
     /* -----------------------
@@ -293,7 +293,7 @@ export const createOrder = async (req, res) => {
               productId: { $in: filteredItems.map((i) => i.productId) },
             },
           },
-        }
+        },
       );
     }
 
@@ -341,7 +341,7 @@ export const getActiveOrders = async (req, res) => {
       .populate("vendors.vendorId", "name email")
       .populate(
         "vendors.items.productId",
-        "productName price discountedprice images"
+        "productName price discountedprice images",
       )
       .lean();
 
@@ -396,7 +396,7 @@ export const getActiveOrders = async (req, res) => {
         currentPage: page,
         pageSize,
       },
-      "Active vendor-level orders retrieved successfully."
+      "Active vendor-level orders retrieved successfully.",
     );
   } catch (err) {
     console.error("Error retrieving active orders:", err);
@@ -412,14 +412,14 @@ export const updateStatus = async (req, res) => {
       status,
       vendorId,
       vehicleType = "bike",
-      sequence = 1, // 🔹 Default sequence
+      sequence = 1,
     } = req.body;
 
     if (!orderId || !status || !vendorId) {
       return badRequest(
         res,
         null,
-        "orderId, vendorId, and status are required."
+        "orderId, vendorId, and status are required.",
       );
     }
 
@@ -439,13 +439,14 @@ export const updateStatus = async (req, res) => {
 
     const order = await Order.findById(orderId);
     if (!order) return notFound(res, null, "Order not found.");
+
     const customerDetail = await CustomerDetail.findOne({
       userId: order.customerId,
     });
 
     // ✅ Find vendor block
     const vendorBlock = order.vendors.find(
-      (v) => v.vendorId.toString() === vendorId.toString()
+      (v) => v.vendorId.toString() === vendorId.toString(),
     );
     if (!vendorBlock)
       return notFound(res, null, "Vendor not found in this order.");
@@ -483,13 +484,13 @@ export const updateStatus = async (req, res) => {
         return badRequest(
           res,
           null,
-          `No available ${vehicleType} drivers nearby. Cannot confirm order.`
+          `No available ${vehicleType} drivers nearby. Cannot confirm order.`,
         );
       }
 
       // ✅ Find the correct leg by sequence
       const leg = order.legs.find(
-        (l) => l.sequence === Number(sequence) && !l.driverId
+        (l) => l.sequence === Number(sequence) && !l.driverId,
       );
 
       if (!leg) {
@@ -517,7 +518,7 @@ export const updateStatus = async (req, res) => {
       return success(
         res,
         driver,
-        "Driver assigned to leg and order confirmed successfully."
+        "Driver assigned to leg and order confirmed successfully.",
       );
     }
 
@@ -529,7 +530,7 @@ export const updateStatus = async (req, res) => {
 
       // ✅ Free driver for the specific leg (sequence-based)
       const leg = order.legs.find(
-        (l) => l.sequence === Number(sequence) && l.driverId
+        (l) => l.sequence === Number(sequence) && l.driverId,
       );
 
       if (leg) {
@@ -619,8 +620,8 @@ export const getVendorOrders = async (req, res) => {
                 status: Array.isArray(status)
                   ? { $in: status }
                   : typeof status === "string" && status.includes(",")
-                  ? { $in: status.split(",").map((s) => s.trim()) }
-                  : status,
+                    ? { $in: status.split(",").map((s) => s.trim()) }
+                    : status,
               }
             : {}),
         },
@@ -644,7 +645,7 @@ export const getVendorOrders = async (req, res) => {
       .populate("vendors.vendorId", "name email")
       .populate(
         "legs.driverId",
-        "FullName mobileNumber vehicleType profileImage status isAvailable isDelivering"
+        "FullName mobileNumber vehicleType profileImage status isAvailable isDelivering",
       ) // ✅ fixed: use legs.driverId instead of vendors.driverId
       .populate("vendors.items.productId", "productName images price")
       .lean();
@@ -653,7 +654,7 @@ export const getVendorOrders = async (req, res) => {
 
     for (const order of orders) {
       const vendorBlock = order.vendors.find(
-        (v) => v.vendorId?._id?.toString() === vendorId.toString()
+        (v) => v.vendorId?._id?.toString() === vendorId.toString(),
       );
 
       if (!vendorBlock) continue;
@@ -665,7 +666,7 @@ export const getVendorOrders = async (req, res) => {
         ? order.legs.filter(
             (l) =>
               l.from?.city === vendorBlock.pickupCity ||
-              l.from?.street === vendorBlock.pickupStreet
+              l.from?.street === vendorBlock.pickupStreet,
           )
         : [];
 
@@ -749,13 +750,13 @@ export const getVendorOrders = async (req, res) => {
               completedAt: l.completedAt,
               driver,
             };
-          })
+          }),
         ),
       };
 
       const dataToken = jwt.sign(
         { orderId: order._id, orderNumber: order.orderNumber },
-        process.env.JWT_SECRET
+        process.env.JWT_SECRET,
       );
 
       vendorOrders.push({ ...data, dataToken });
@@ -764,7 +765,7 @@ export const getVendorOrders = async (req, res) => {
     return success(
       res,
       { data: vendorOrders, totalRecords, currentPage: page, pageSize },
-      "Vendor orders retrieved successfully."
+      "Vendor orders retrieved successfully.",
     );
   } catch (err) {
     console.error("Error retrieving vendor orders:", err);
@@ -786,7 +787,7 @@ export const reassignDriver = async (req, res) => {
 
     // ✅ Find the correct vendor block
     const vendorBlock = order.vendors.find(
-      (v) => v.vendorId.toString() === vendorId.toString()
+      (v) => v.vendorId.toString() === vendorId.toString(),
     );
     if (!vendorBlock) {
       return notFound(res, null, "Vendor not found in this order.");
@@ -851,7 +852,7 @@ export const reassignDriver = async (req, res) => {
     return success(
       res,
       { success: true, driver },
-      "Driver reassigned successfully."
+      "Driver reassigned successfully.",
     );
   } catch (err) {
     console.error("Reassign driver error:", err);
@@ -874,7 +875,7 @@ export const getOrderDeliveryInforInDriverSide = async (req, res) => {
     // ✅ Query orders where driver is assigned in legs
     const orders = await Order.find({ "legs.driverId": driverObjectId })
       .select(
-        "_id orderNumber customerId status totalItems subTotal shippingFee grandTotal paymentMethod paymentStatus vendors dropLatitude dropLongitude dropStreet dropCity dropState dropCountry legs"
+        "_id orderNumber customerId status totalItems subTotal shippingFee grandTotal paymentMethod paymentStatus vendors dropLatitude dropLongitude dropStreet dropCity dropState dropCountry legs",
       )
       .lean();
 
@@ -882,7 +883,7 @@ export const getOrderDeliveryInforInDriverSide = async (req, res) => {
       orders.map(async (order) => {
         const customer = await CustomerDetail.findOne(
           { userId: order.customerId },
-          { FullName: 1, profileImage: 1 }
+          { FullName: 1, profileImage: 1 },
         ).lean();
 
         // Convert customer profile image to presigned URL
@@ -894,12 +895,12 @@ export const getOrderDeliveryInforInDriverSide = async (req, res) => {
 
         const address = await Address.findOne(
           { userId: order.customerId, isDefault: true },
-          { phone: 1 }
+          { phone: 1 },
         ).lean();
 
         // ✅ Filter legs belonging to this driver
         const driverLegs = order.legs.filter(
-          (leg) => leg.driverId?.toString() === driverId
+          (leg) => leg.driverId?.toString() === driverId,
         );
 
         const vendorEstimates = await Promise.all(
@@ -913,7 +914,7 @@ export const getOrderDeliveryInforInDriverSide = async (req, res) => {
               const vendorOrder = order.vendors.find(
                 (v) =>
                   v.pickupLatitude === leg.from.latitude &&
-                  v.pickupLongitude === leg.from.longitude
+                  v.pickupLongitude === leg.from.longitude,
               );
 
               if (!vendorOrder) {
@@ -925,7 +926,7 @@ export const getOrderDeliveryInforInDriverSide = async (req, res) => {
 
               const vendorData = await VendorDetail.findOne(
                 { userId: vendorOrder.vendorId },
-                { ownerName: 1, profilePicture: 1, businessPhone: 1 }
+                { ownerName: 1, profilePicture: 1, businessPhone: 1 },
               ).lean();
 
               // Convert vendor profile image to presigned URL
@@ -938,23 +939,23 @@ export const getOrderDeliveryInforInDriverSide = async (req, res) => {
               }
 
               const productIds = vendorOrder.items.map(
-                (item) => new mongoose.Types.ObjectId(item.productId)
+                (item) => new mongoose.Types.ObjectId(item.productId),
               );
               const products = await Product.find(
                 { _id: { $in: productIds } },
-                { productName: 1, images: 1 }
+                { productName: 1, images: 1 },
               ).lean();
 
               const itemDetails = await Promise.all(
                 vendorOrder.items.map(async (item) => {
                   const product = products.find(
-                    (p) => p._id.toString() === item.productId.toString()
+                    (p) => p._id.toString() === item.productId.toString(),
                   );
 
                   let productImageUrls = [];
                   if (product?.images?.length) {
                     productImageUrls = await getPresignedImageUrls(
-                      product.images
+                      product.images,
                     );
                   }
 
@@ -966,7 +967,7 @@ export const getOrderDeliveryInforInDriverSide = async (req, res) => {
                     totalPrice: item.totalPrice,
                     images: productImageUrls,
                   };
-                })
+                }),
               );
 
               // Distance Matrix API call
@@ -1025,7 +1026,7 @@ export const getOrderDeliveryInforInDriverSide = async (req, res) => {
             } catch (err) {
               return { error: err.message };
             }
-          })
+          }),
         );
 
         return {
@@ -1046,7 +1047,7 @@ export const getOrderDeliveryInforInDriverSide = async (req, res) => {
           paymentStatus: order.paymentStatus,
           vendors: vendorEstimates,
         };
-      })
+      }),
     );
 
     return success(res, orderData, "Orders for driver fetched successfully.");
@@ -1065,7 +1066,7 @@ export const getDriverOrderHistory = async (req, res) => {
 
     const driver = await DriverDetail.findOne(
       { userId: driverId },
-      { FullName: 1, driverType: 1, vehicleType: 1 }
+      { FullName: 1, driverType: 1, vehicleType: 1 },
     ).lean();
     if (!driver) return notFound(res, null, "Driver not found.");
 
@@ -1078,7 +1079,7 @@ export const getDriverOrderHistory = async (req, res) => {
       return success(
         res,
         { delivered: [], cancelled: [] },
-        "No orders found for this driver."
+        "No orders found for this driver.",
       );
     }
 
@@ -1091,7 +1092,7 @@ export const getDriverOrderHistory = async (req, res) => {
       orders.map(async (order) => {
         const customer = await CustomerDetail.findOne(
           { userId: order.customerId },
-          { FullName: 1, profileImage: 1 }
+          { FullName: 1, profileImage: 1 },
         ).lean();
 
         let customerProfileImage = null;
@@ -1102,7 +1103,7 @@ export const getDriverOrderHistory = async (req, res) => {
 
         // 🔹 Legs for this driver
         const driverLegs = order.legs.filter(
-          (leg) => leg.driverId?.toString() === driver._id.toString()
+          (leg) => leg.driverId?.toString() === driver._id.toString(),
         );
 
         // 🔹 Vendors linked to this order
@@ -1110,7 +1111,7 @@ export const getDriverOrderHistory = async (req, res) => {
           order.vendors.map(async (v) => {
             const vendorData = await VendorDetail.findOne(
               { userId: v.vendorId },
-              { ownerName: 1, profilePicture: 1, businessPhone: 1 }
+              { ownerName: 1, profilePicture: 1, businessPhone: 1 },
             ).lean();
 
             let vendorImage = null;
@@ -1141,7 +1142,7 @@ export const getDriverOrderHistory = async (req, res) => {
                   totalPrice: item.totalPrice,
                   images: productImages,
                 };
-              })
+              }),
             );
 
             return {
@@ -1168,7 +1169,7 @@ export const getDriverOrderHistory = async (req, res) => {
                 country: order.dropCountry,
               },
             };
-          })
+          }),
         );
 
         // 🔹 Calculate driverEarnings
@@ -1185,7 +1186,7 @@ export const getDriverOrderHistory = async (req, res) => {
             (
               (order.grandTotal * commissionConfig.commissionPercentage) /
               100
-            ).toFixed(2)
+            ).toFixed(2),
           );
         }
 
@@ -1220,13 +1221,13 @@ export const getDriverOrderHistory = async (req, res) => {
         } else if (order.vendors.some((v) => v.status === "cancelled")) {
           cancelledOrders.push(formattedOrder);
         }
-      })
+      }),
     );
 
     return success(
       res,
       { delivered: deliveredOrders, cancelled: cancelledOrders },
-      "Driver order history fetched successfully."
+      "Driver order history fetched successfully.",
     );
   } catch (err) {
     console.error("Error fetching driver order history:", err);
@@ -1305,7 +1306,7 @@ export const assignReturnDriver = async (req, res) => {
     return JsonRes.success(
       res,
       order,
-      "Driver assigned for return successfully."
+      "Driver assigned for return successfully.",
     );
   } catch (error) {
     return JsonRes.serverError(res, error, "Failed to assign return driver.");
@@ -1344,7 +1345,7 @@ export const confirmVendorReceipt = async (req, res) => {
       return JsonRes.badRequest(
         res,
         null,
-        "Vendor receipt cannot be confirmed."
+        "Vendor receipt cannot be confirmed.",
       );
 
     // Step 1: Mark vendor receipt
@@ -1371,7 +1372,7 @@ export const confirmVendorReceipt = async (req, res) => {
     return JsonRes.success(
       res,
       order,
-      "Vendor receipt confirmed, driver released, and return process completed."
+      "Vendor receipt confirmed, driver released, and return process completed.",
     );
   } catch (error) {
     return JsonRes.serverError(res, error, "Failed to confirm vendor receipt.");
@@ -1437,7 +1438,7 @@ export const getActiveOrdersForCustomer = async (req, res) => {
     // Fetch vendor details where userId matches
     const vendorsData = await VendorDetail.find(
       { userId: { $in: vendorObjectIds } },
-      { ownerName: 1, userId: 1 }
+      { ownerName: 1, userId: 1 },
     ).lean();
 
     // Map userId -> ownerName
@@ -1506,19 +1507,19 @@ export const getActiveOrderByOrderIdAndVendorId = async (req, res) => {
       return success(
         res,
         null,
-        "No active order found for this Order ID and Vendor."
+        "No active order found for this Order ID and Vendor.",
       );
     }
 
     // Filter only the vendor that matched
     order.vendors = order.vendors.filter(
       (v) =>
-        v.vendorId.toString() === vendorId && activeStatuses.includes(v.status)
+        v.vendorId.toString() === vendorId && activeStatuses.includes(v.status),
     );
 
     // Gather product IDs for this vendor
     const productIds = order.vendors.flatMap((v) =>
-      v.items.map((item) => item.productId.toString())
+      v.items.map((item) => item.productId.toString()),
     );
 
     // Fetch product names
@@ -1597,7 +1598,7 @@ export const getOrderHistoryOfCustomer = async (req, res) => {
     const allProductIds = orders.flatMap((order) =>
       (order.vendors || [])
         .flatMap((v) => (v.items || []).map((i) => i.productId))
-        .filter(Boolean)
+        .filter(Boolean),
     );
 
     // Fetch product details
@@ -1615,7 +1616,7 @@ export const getOrderHistoryOfCustomer = async (req, res) => {
         console.error(
           "Image fetch failed for product:",
           product._id,
-          e?.message
+          e?.message,
         );
       }
       productDetailsMap[product._id.toString()] = {
@@ -1670,7 +1671,7 @@ export const getOrderHistoryOfCustomer = async (req, res) => {
           const filteredVendors = order.vendors
             .map((vendor) => {
               const filteredItems = vendor.items.filter((i) =>
-                i.productName?.toLowerCase().includes(search.toLowerCase())
+                i.productName?.toLowerCase().includes(search.toLowerCase()),
               );
               return { ...vendor, items: filteredItems };
             })
@@ -1686,7 +1687,7 @@ export const getOrderHistoryOfCustomer = async (req, res) => {
       formattedOrders = formattedOrders
         .map((order) => {
           const filteredVendors = order.vendors.filter(
-            (v) => v.status === status
+            (v) => v.status === status,
           );
           return { ...order, vendors: filteredVendors };
         })
@@ -1696,7 +1697,7 @@ export const getOrderHistoryOfCustomer = async (req, res) => {
     // 📌 Apply returnRequest status filter
     if (returnStatus) {
       formattedOrders = formattedOrders.filter(
-        (order) => order.returnRequest?.status === returnStatus
+        (order) => order.returnRequest?.status === returnStatus,
       );
     }
 
@@ -1734,7 +1735,7 @@ export const getAdminFinancialBreakdown = async (req, res) => {
     let query = Order.find(filter)
       .populate(
         "vendors.items.productId",
-        "category productName price discountedprice"
+        "category productName price discountedprice",
       )
       .populate("vendors.vendorId", "email name")
       .lean();
@@ -1756,7 +1757,7 @@ export const getAdminFinancialBreakdown = async (req, res) => {
 
         // 🧩 Find the driver from legs with delivered status
         const deliveredLeg = (order.legs || []).find(
-          (leg) => leg.status === "delivered" && leg.driverId
+          (leg) => leg.status === "delivered" && leg.driverId,
         );
         if (!deliveredLeg || !deliveredLeg.driverId) continue;
 
@@ -1798,7 +1799,7 @@ export const getAdminFinancialBreakdown = async (req, res) => {
               (
                 (grandTotal * commissionConfig.commissionPercentage) /
                 100
-              ).toFixed(2)
+              ).toFixed(2),
             );
           }
         }
@@ -1819,7 +1820,7 @@ export const getAdminFinancialBreakdown = async (req, res) => {
 
         // ✅ Vendor earnings
         const vendorEarnings = parseFloat(
-          (grandTotal - driverEarnings - adminCommission).toFixed(2)
+          (grandTotal - driverEarnings - adminCommission).toFixed(2),
         );
 
         breakdowns.push({
@@ -1840,7 +1841,7 @@ export const getAdminFinancialBreakdown = async (req, res) => {
     if (search) {
       const regex = new RegExp(search, "i");
       filteredBreakdowns = breakdowns.filter(
-        (b) => regex.test(b.orderNumber) || regex.test(b.vendor?.email || "")
+        (b) => regex.test(b.orderNumber) || regex.test(b.vendor?.email || ""),
       );
     }
 
@@ -1849,7 +1850,7 @@ export const getAdminFinancialBreakdown = async (req, res) => {
     const startIndex = (page - 1) * pageSize;
     const paginated = filteredBreakdowns.slice(
       startIndex,
-      startIndex + parseInt(pageSize)
+      startIndex + parseInt(pageSize),
     );
 
     return success(
@@ -1860,7 +1861,7 @@ export const getAdminFinancialBreakdown = async (req, res) => {
         pageSize: parseInt(pageSize),
         data: paginated,
       },
-      "Financial breakdown of Admin retrieved successfully."
+      "Financial breakdown of Admin retrieved successfully.",
     );
   } catch (err) {
     console.error("Error in financial breakdown:", err);
@@ -1882,7 +1883,7 @@ export const getVendorFinancialBreakdown = async (req, res) => {
     })
       .populate(
         "vendors.items.productId",
-        "category productName price discountedprice"
+        "category productName price discountedprice",
       )
       .populate("vendors.vendorId", "email name")
       .lean();
@@ -1899,7 +1900,7 @@ export const getVendorFinancialBreakdown = async (req, res) => {
     for (const order of orders) {
       // Find only this vendor's block
       const vendorBlock = order.vendors.find(
-        (vendor) => vendor.vendorId._id.toString() === vendorId.toString()
+        (vendor) => vendor.vendorId._id.toString() === vendorId.toString(),
       );
       if (!vendorBlock) continue;
 
@@ -1907,13 +1908,13 @@ export const getVendorFinancialBreakdown = async (req, res) => {
 
       // --- 🧩 Find the driver from legs with delivered status ---
       const deliveredLeg = (order.legs || []).find(
-        (leg) => leg.status === "delivered" && leg.driverId
+        (leg) => leg.status === "delivered" && leg.driverId,
       );
       let driverEarnings = 0;
 
       if (deliveredLeg && deliveredLeg.driverId) {
         const driverDetail = await DriverDetail.findById(
-          deliveredLeg.driverId
+          deliveredLeg.driverId,
         ).lean();
 
         if (driverDetail) {
@@ -1930,7 +1931,7 @@ export const getVendorFinancialBreakdown = async (req, res) => {
               (
                 (grandTotal * commissionConfig.commissionPercentage) /
                 100
-              ).toFixed(2)
+              ).toFixed(2),
             );
           }
         }
@@ -1952,7 +1953,7 @@ export const getVendorFinancialBreakdown = async (req, res) => {
 
       // --- 💰 Vendor earnings ---
       const vendorEarnings = parseFloat(
-        (grandTotal - driverEarnings - adminCommission).toFixed(2)
+        (grandTotal - driverEarnings - adminCommission).toFixed(2),
       );
 
       breakdowns.push({
@@ -1972,7 +1973,7 @@ export const getVendorFinancialBreakdown = async (req, res) => {
     if (search) {
       const regex = new RegExp(search, "i");
       filteredBreakdowns = breakdowns.filter(
-        (b) => regex.test(b.orderNumber) || regex.test(b.vendor?.email || "")
+        (b) => regex.test(b.orderNumber) || regex.test(b.vendor?.email || ""),
       );
     }
 
@@ -1981,7 +1982,7 @@ export const getVendorFinancialBreakdown = async (req, res) => {
     const startIndex = (page - 1) * pageSize;
     const paginated = filteredBreakdowns.slice(
       startIndex,
-      startIndex + parseInt(pageSize)
+      startIndex + parseInt(pageSize),
     );
 
     return success(
@@ -1992,14 +1993,14 @@ export const getVendorFinancialBreakdown = async (req, res) => {
         pageSize: parseInt(pageSize),
         data: paginated,
       },
-      "Vendor financial breakdown retrieved successfully."
+      "Vendor financial breakdown retrieved successfully.",
     );
   } catch (err) {
     console.error("Error in vendor financial breakdown:", err);
     return serverError(
       res,
       err,
-      "Failed to fetch vendor financial breakdown stage."
+      "Failed to fetch vendor financial breakdown stage.",
     );
   }
 };
@@ -2018,7 +2019,7 @@ export const getDriverFinancialBreakdown = async (req, res) => {
       return success(
         res,
         { total: 0, page: 1, pageSize: 10, data: [] },
-        "No driver found."
+        "No driver found.",
       );
     }
     const driverId = driverDetails._id;
@@ -2031,7 +2032,7 @@ export const getDriverFinancialBreakdown = async (req, res) => {
     })
       .populate(
         "vendors.items.productId",
-        "category productName price discountedprice"
+        "category productName price discountedprice",
       )
       .populate("vendors.vendorId", "email name")
       .lean();
@@ -2061,7 +2062,7 @@ export const getDriverFinancialBreakdown = async (req, res) => {
             (
               (grandTotal * commissionConfig.commissionPercentage) /
               100
-            ).toFixed(2)
+            ).toFixed(2),
           );
         }
 
@@ -2071,12 +2072,12 @@ export const getDriverFinancialBreakdown = async (req, res) => {
           const firstProduct = vendorBlock.items[0].productId;
           if (firstProduct?.category) {
             const category = await Category.findById(
-              firstProduct.category
+              firstProduct.category,
             ).lean();
             if (category) {
               const rate = category.commission || 0;
               adminCommission = parseFloat(
-                ((grandTotal * rate) / 100).toFixed(2)
+                ((grandTotal * rate) / 100).toFixed(2),
               );
             }
           }
@@ -2084,7 +2085,7 @@ export const getDriverFinancialBreakdown = async (req, res) => {
 
         // --- Vendor earnings
         const vendorEarnings = parseFloat(
-          (grandTotal - driverEarnings - adminCommission).toFixed(2)
+          (grandTotal - driverEarnings - adminCommission).toFixed(2),
         );
 
         const products =
@@ -2121,7 +2122,7 @@ export const getDriverFinancialBreakdown = async (req, res) => {
         (b) =>
           regex.test(b.orderNumber) ||
           regex.test(b.driver?.fullName || "") ||
-          regex.test(b.vendor?.email || "")
+          regex.test(b.vendor?.email || ""),
       );
     }
 
@@ -2130,7 +2131,7 @@ export const getDriverFinancialBreakdown = async (req, res) => {
     const startIndex = (page - 1) * pageSize;
     const paginated = filteredBreakdowns.slice(
       startIndex,
-      startIndex + parseInt(pageSize)
+      startIndex + parseInt(pageSize),
     );
 
     return success(
@@ -2141,7 +2142,7 @@ export const getDriverFinancialBreakdown = async (req, res) => {
         pageSize: parseInt(pageSize),
         data: paginated,
       },
-      "Driver financial breakdown retrieved successfully."
+      "Driver financial breakdown retrieved successfully.",
     );
   } catch (err) {
     console.error("Error in driver financial breakdown:", err);

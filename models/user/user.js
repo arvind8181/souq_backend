@@ -62,14 +62,14 @@ const UserSchema = new Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 UserSchema.index(
   { googleId: 1 },
   {
     unique: true,
     partialFilterExpression: { googleId: { $exists: true, $ne: null } },
-  }
+  },
 );
 UserSchema.index({ email: 1, role: 1 }, { unique: true });
 const User = model("User", UserSchema);
