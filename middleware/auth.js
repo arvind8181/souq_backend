@@ -29,8 +29,11 @@ export const verifyAdmin = (req, res, next) => {
     const decoded = jwt.verify(token, JWT_SECRET);
 
     // Check if role is admin (role === 10)
-    if (!decoded || decoded.role !== ROLES.ADMIN) {
-      return unauthorized(res, null, "Access denied. Admins only.");
+    if (
+      !decoded ||
+      ![ROLES.ADMIN, ROLES.SUB_ADMIN].includes(decoded.role)
+    ) {
+      return unauthorized(res, null, "Access denied.");
     }
 
     // Attach decoded user info to request

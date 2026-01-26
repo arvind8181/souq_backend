@@ -11,42 +11,78 @@ const {
   dataCreated,
   unauthorized,
 } = JsonRes;
+// export const login = async (req, res, next) => {
+//   try {
+//     const { email, password, role } = req.body;
+
+//     // Basic validation
+//     if (!email || !password) {
+//       return badRequest(res, null, "Email and password are required.");
+//     }
+
+//     // 1. Find user by email
+//     const user = await User.findOne({
+//       email,
+//       role,
+//       deleted: false,
+//       verified: true,
+//     });
+//     if (!user) {
+//       return unauthorized(res, null, "Invalid email or password.");
+//     }
+
+//     // 2. Compare password
+//     const isMatch = await compare(password, user.password);
+//     if (!isMatch) {
+//       return unauthorized(res, null, "Invalid email or password.");
+//     }
+
+//     // 3. Sanitize user data (remove password)
+//     const userWithoutPassword = user.toObject();
+//     delete userWithoutPassword.password;
+
+//     // 4. Attach user to request
+//     req.user = userWithoutPassword;
+//     next();
+//   } catch (error) {
+//     console.error("Login middleware error:", error);
+//     return serverError(res, error, "Internal server error.");
+//   }
+// };
+
+
 export const login = async (req, res, next) => {
   try {
-    const { email, password, role } = req.body;
+    const { email, password } = req.body;
 
-    // Basic validation
     if (!email || !password) {
-      return badRequest(res, null, "Email and password are required.");
+      return badRequest(res, null, 'Email and password are required.');
     }
 
-    // 1. Find user by email
+    // 🔑 Find by email ONLY
     const user = await User.findOne({
       email,
-      role,
       deleted: false,
       verified: true,
     });
+
     if (!user) {
-      return unauthorized(res, null, "Invalid email or password.");
+      return unauthorized(res, null, 'Invalid email or password.');
     }
 
-    // 2. Compare password
     const isMatch = await compare(password, user.password);
     if (!isMatch) {
-      return unauthorized(res, null, "Invalid email or password.");
+      return unauthorized(res, null, 'Invalid email or password.');
     }
 
-    // 3. Sanitize user data (remove password)
     const userWithoutPassword = user.toObject();
     delete userWithoutPassword.password;
 
-    // 4. Attach user to request
     req.user = userWithoutPassword;
     next();
   } catch (error) {
-    console.error("Login middleware error:", error);
-    return serverError(res, error, "Internal server error.");
+    console.error('Login middleware error:', error);
+    return serverError(res, error, 'Internal server error.');
   }
 };
 

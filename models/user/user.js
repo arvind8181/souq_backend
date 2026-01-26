@@ -12,10 +12,11 @@ const UserSchema = new Schema(
       type: String,
       required: true,
     },
+    fullName: { type: String },
     role: {
       type: Number,
       required: true,
-      enum: [1, 2, 3, 10, 11, 12],
+      enum: [1, 2, 3, 10, 11, 12, 13],
     },
     otp: {
       code: {

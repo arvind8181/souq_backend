@@ -5,6 +5,27 @@ export const ROLES = {
   ADMIN: 10,
   CITY_MANAGER: 11,
   SUPPORT: 12,
+  SUB_ADMIN: 13,
+};
+
+export const PERMISSIONS = {
+  DASHBOARD: 'dashboard',
+  VENDORS_VIEW: 'vendors_view',
+  VENDORS_MANAGE: 'vendors_manage',
+  DRIVERS_VIEW: 'drivers_view',
+  DRIVERS_MANAGE: 'drivers_manage',
+  ORDERS_VIEW: 'orders_view',
+  STORES: 'stores',
+  CATEGORY: 'category',
+  ADS: 'ads',
+  PROMOTIONS: 'promotions',
+  REVIEWS: 'reviews',
+  CHATS: 'chats',
+  DRIVER_COMMISSION: 'driver_commission',
+  ADDON_PRICING: 'addon_pricing',
+  PROMOTION_PRICING: 'promotion_pricing',
+  FINANCES: 'finances',
+  DRIVER_PAYMENTS: 'driver_payments',
 };
 
 export const S3TYPE = {

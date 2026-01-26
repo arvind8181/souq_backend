@@ -25,6 +25,33 @@ router.post(
   UserController.createAccount
 );
 router.post(
+  "/admin/create-user",
+  verifyAdmin,
+  UserValidate.createNewAccount,
+  UserController.createAccount
+);
+router.get(
+  '/admin/permissions',
+  verifyAdmin,
+  UserController.getPermissions
+)
+router.get(
+  '/admin/sub-admins',
+  verifyAdmin,
+  UserController.getSubAdmins
+)
+router.patch(
+  '/admin/sub-admin/:id',
+  verifyAdmin,
+  UserController.updateSubAdmin
+)
+router.delete(
+  '/admin/sub-admin/:id',
+  verifyAdmin,
+  UserController.deleteSubAdmin
+)
+
+router.post(
   `/forgot/password`,
   MU.forgotPassword,
   UserController.forgotPasswordController

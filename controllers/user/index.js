@@ -7,7 +7,7 @@ import CustomerDetail from "../../models/customerDetails/customerDetails.js";
 import DriverDetail from "../../models/driverDetails/driverDetails.js";
 import Testing from "../../models/testing/testing.js";
 import jwt from "jsonwebtoken";
-import { ROLES,S3TYPE,COLORS } from "../../utils/constant.js";
+import { ROLES, S3TYPE, COLORS } from "../../utils/constant.js";
 import { sendMail } from "../../helpers/mail.js";
 import { generateAndSendOtp } from "../../services/generateAndSendOtp.js";
 import { verifyOtpAndGetUser } from "../../services/otp.js";
@@ -19,6 +19,8 @@ import {
   getPresignedImageUrls,
 } from "../../services/s3Service.js";
 import { sendNotification } from "../../services/notificationService.js";
+import SubAdminPermission from "../../models/subadminpermission/SubAdminPermission.js";
+import { PERMISSIONS } from "../../utils/constant.js";
 const generateToken = (payload) => {
   return jwt.sign(payload, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRY || "1d",
@@ -38,7 +40,14 @@ const {
 
 export const createAccount = async (req, res) => {
   try {
-    const { email, password, role, fullName = "" } = req.body;
+    const {
+      email,
+      password,
+      role,
+      fullName = "",
+      createdByAdmin = false,
+      permissions = [],
+    } = req.body;
 
     /* 1 Basic validation */
     if (!email || !password || role == null) {
@@ -47,9 +56,32 @@ export const createAccount = async (req, res) => {
     if (!Object.values(ROLES).includes(Number(role))) {
       return badRequest(res, null, "Invalid role specified.");
     }
-
-    // Convert role to number after validation
     const roleNumber = Number(role);
+    if (
+      createdByAdmin &&
+      (req.user?.role !== ROLES.ADMIN || roleNumber !== ROLES.SUB_ADMIN)
+    ) {
+      return unauthorized(
+        res,
+        null,
+        "createdByAdmin is only allowed for sub-admin creation by admin",
+      );
+    }
+    if (createdByAdmin && roleNumber === ROLES.SUB_ADMIN) {
+      const invalidPermissions = permissions.filter(
+        (p) => !Object.values(PERMISSIONS).includes(p),
+      );
+
+      if (invalidPermissions.length > 0) {
+        return badRequest(
+          res,
+          null,
+          `Invalid permissions: ${invalidPermissions.join(", ")}`,
+        );
+      }
+    }
+    // Convert role to number after validation
+
     console.log(" DEBUG - Input values:", { email, roleNumber, fullName });
 
     /* 2 Look for an existing user with same email & role */
@@ -90,12 +122,12 @@ export const createAccount = async (req, res) => {
             const result = await CustomerDetail.findOneAndUpdate(
               { userId: user._id },
               { FullName: fullName },
-              { new: true }
+              { new: true },
             );
             console.log(" DEBUG - CustomerDetail update result:", result);
             if (!result) {
               console.log(
-                " DEBUG - No CustomerDetail found to update, creating new one..."
+                " DEBUG - No CustomerDetail found to update, creating new one...",
               );
               const newCustomer = await CustomerDetail.create({
                 userId: user._id,
@@ -113,7 +145,7 @@ export const createAccount = async (req, res) => {
             const result = await DriverDetail.findOneAndUpdate(
               { userId: user._id },
               { FullName: fullName },
-              { new: true }
+              { new: true },
             );
             console.log(" DEBUG - DriverDetail update result:", result);
           } catch (error) {
@@ -125,6 +157,36 @@ export const createAccount = async (req, res) => {
       }
 
       // regenerate OTP
+      // const { otpCode, otpExpiresAt, token } = await generateAndSendOtp(user);
+      // user.otp = { code: otpCode, expiresAt: otpExpiresAt };
+      // await user.save();
+      // return success(res, { token }, "Account updated. OTP sent to email.");
+      if (createdByAdmin && roleNumber === ROLES.SUB_ADMIN) {
+        user.fullName = fullName; // ✅ ADD THIS
+        await user.save();
+        const permissionDoc = await SubAdminPermission.findOneAndUpdate(
+          { userId: user._id },
+          { permissions },
+          { new: true, upsert: true },
+        );
+        return success(
+          res,
+          {
+            user: {
+              _id: user._id,
+              email: user.email,
+              fullName: user.fullName,
+              role: user.role,
+              verified: user.verified,
+            },
+            permissions: permissionDoc?.permissions || [],
+            availablePermissions: Object.values(PERMISSIONS),
+          },
+          "Sub-admin account updated successfully.",
+        );
+      }
+
+      // 📨 Normal flow → OTP required
       const { otpCode, otpExpiresAt, token } = await generateAndSendOtp(user);
       user.otp = { code: otpCode, expiresAt: otpExpiresAt };
       await user.save();
@@ -137,12 +199,20 @@ export const createAccount = async (req, res) => {
     /* ─────────────────────────────────────────────────────────── */
     console.log(" DEBUG - Path: CASE C (creating new user)");
 
+    // user = await User.create({
+    //   email,
+    //   password: hashedPassword,
+    //   role: roleNumber,
+    //   isDeleted: false,
+    //   verified: roleNumber === ROLES.ADMIN,
+    // });
     user = await User.create({
       email,
       password: hashedPassword,
       role: roleNumber,
       isDeleted: false,
-      verified: roleNumber === ROLES.ADMIN,
+      fullName,
+      verified: createdByAdmin && roleNumber === ROLES.SUB_ADMIN,
     });
     console.log(" DEBUG - New user created:", user._id);
 
@@ -206,11 +276,39 @@ export const createAccount = async (req, res) => {
         console.log(" DEBUG - No case matched in CASE C switch");
     }
 
+    // const { otpCode, otpExpiresAt, token } = await generateAndSendOtp(user);
+    // user.otp = { code: otpCode, expiresAt: otpExpiresAt };
+    // await user.save();
+    if (createdByAdmin && roleNumber === ROLES.SUB_ADMIN) {
+      const permissionDoc = await SubAdminPermission.create({
+        userId: user._id,
+        permissions,
+      });
+      return success(
+        res,
+        {
+          user: {
+            _id: user._id,
+            email: user.email,
+            fullName: user.fullName,
+            role: user.role,
+            verified: user.verified,
+          },
+          permissions: permissionDoc?.permissions || [],
+          availablePermissions: Object.values(PERMISSIONS),
+        },
+        "Sub-admin account created successfully.",
+      );
+    }
+
+    // 📨 Normal users → OTP flow
     const { otpCode, otpExpiresAt, token } = await generateAndSendOtp(user);
     user.otp = { code: otpCode, expiresAt: otpExpiresAt };
     await user.save();
 
     return success(res, { token }, "Account registered. OTP sent to email.");
+
+    // return success(res, { token }, "Account registered. OTP sent to email.");
   } catch (err) {
     console.error(" DEBUG - Create user error:", err);
     return serverError(res, err, "Failed to create account. Please try again.");
@@ -220,14 +318,14 @@ export const createAccount = async (req, res) => {
 export const loginController = async (req, res) => {
   try {
     const sessionUser = req.user;
-       console.log(sessionUser ,"sessionUser===================",req.body);
+    console.log(sessionUser, "sessionUser===================", req.body);
     if (!sessionUser) {
       return unauthorized(res, null, "Access denied. User not found.");
     }
-   
+
     // Step 1: Extract device info from req.body
     const { deviceToken, deviceType } = req.body;
-    console.log(sessionUser ,"sessionUser===================",req.body);
+    console.log(sessionUser, "sessionUser===================", req.body);
 
     if (deviceToken && deviceType) {
       // Step 2: Update loginToken field in User collection
@@ -276,9 +374,23 @@ export const loginController = async (req, res) => {
     }
 
     //  For admin (or other roles that don’t have detail models)
-    if (sessionUser.role === ROLES.ADMIN) {
-      // send directly using UserId instead of entityId
+    // if (sessionUser.role === ROLES.ADMIN) {
+    //   // send directly using UserId instead of entityId
+    //   detailEntityId = sessionUser._id;
+    // }
+    if (
+      sessionUser.role === ROLES.ADMIN ||
+      sessionUser.role === ROLES.SUB_ADMIN
+    ) {
       detailEntityId = sessionUser._id;
+    }
+    let permissions = [];
+
+    if (sessionUser.role === ROLES.SUB_ADMIN) {
+      const permDoc = await SubAdminPermission.findOne({
+        userId: sessionUser._id,
+      });
+      permissions = permDoc?.permissions || [];
     }
 
     const authPayload = {
@@ -286,6 +398,7 @@ export const loginController = async (req, res) => {
       email: sessionUser.email,
       role: sessionUser.role,
       verified: true,
+      permissions,
       ...(driverStatus && { status: driverStatus }),
       ...(vendorStatus && { status: vendorStatus }),
       ...(profileComplete !== null && { profileComplete }),
@@ -309,6 +422,7 @@ export const loginController = async (req, res) => {
         token: authToken,
         user: {
           _id: sessionUser._id,
+          permissions,
           tableId: detailEntityId, //tableId is _id of that particular role.
           email: sessionUser.email,
           role: sessionUser.role,
@@ -320,7 +434,7 @@ export const loginController = async (req, res) => {
         ...(vendorStatus && { status: vendorStatus }),
         ...(profileComplete !== null && { profileComplete }),
       },
-      "User logged in successfully."
+      "User logged in successfully.",
     );
   } catch (error) {
     console.error("Login error:", error);
@@ -330,11 +444,10 @@ export const loginController = async (req, res) => {
 
 export const forgotPasswordController = async (req, res) => {
   try {
-    console.log(req.body ,"email====================req.body============");
+    console.log(req.body, "email====================req.body============");
     const email = req.body?.email || req.user?.email;
     const user = req.user;
     if (!email) return badRequest(res, null, "Email is required.");
-
 
     // Generate OTP and expiration
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit
@@ -348,7 +461,7 @@ export const forgotPasswordController = async (req, res) => {
         role: user.role,
         expiresIn: otpExpiresAt,
       },
-      process.env.JWT_SECRET
+      process.env.JWT_SECRET,
     );
 
     // Save OTP
@@ -397,7 +510,7 @@ export const verifyOtp = async (req, res) => {
     const confirmResetToken = jwt.sign(
       { id: user._id, otp },
       process.env.JWT_SECRET,
-      { expiresIn: "10m" }
+      { expiresIn: "10m" },
     );
 
     return success(res, { token: confirmResetToken }, "OTP verified.");
@@ -473,7 +586,7 @@ export const changePassword = async (req, res) => {
       return badRequest(
         res,
         null,
-        "Old password, new password, and confirm new password are required."
+        "Old password, new password, and confirm new password are required.",
       );
     }
 
@@ -481,7 +594,7 @@ export const changePassword = async (req, res) => {
       return badRequest(
         res,
         null,
-        "New password and confirm password must match."
+        "New password and confirm password must match.",
       );
     }
 
@@ -638,7 +751,7 @@ export const socialSignUp = async (req, res) => {
         ...(status && { status }),
         ...(profileComplete !== null && { profileComplete }),
       },
-      "User created successfully"
+      "User created successfully",
     );
   } catch (error) {
     if (error.response) {
@@ -741,7 +854,7 @@ export const socialLogin = async (req, res) => {
         ...(status && { status }),
         ...(profileComplete !== null && { profileComplete }),
       },
-      "Login successful."
+      "Login successful.",
     );
   } catch (error) {
     if (error.response) {
@@ -840,7 +953,7 @@ export const updateCustomerProfile = async (req, res) => {
           customer.profileImage = s3Key;
 
           console.log(
-            `Profile image uploaded successfully for user ${userId}: ${s3Key}`
+            `Profile image uploaded successfully for user ${userId}: ${s3Key}`,
           );
         }
       } catch (uploadError) {
@@ -972,7 +1085,7 @@ export const updateDriverProfile = async (req, res) => {
           driver.profileImage = s3Key;
 
           console.log(
-            `Profile image uploaded successfully for driver ${userId}: ${s3Key}`
+            `Profile image uploaded successfully for driver ${userId}: ${s3Key}`,
           );
         }
       } catch (uploadError) {
@@ -1018,16 +1131,6 @@ export const updateDriverProfile = async (req, res) => {
   }
 };
 
-
-
-
-
-
-
-
-
-
-
 /**
  * Get logged-in user's notifications
  * @route GET /user/notifications
@@ -1048,7 +1151,11 @@ export const getCustomerNotifications = async (req, res) => {
 
     const total = await Notification.countDocuments({ userId });
 
-    return success(res, { notifications, total, page, limit }, "Customer notifications fetched successfully.");
+    return success(
+      res,
+      { notifications, total, page, limit },
+      "Customer notifications fetched successfully.",
+    );
   } catch (error) {
     console.error("Error fetching customer notifications:", error);
     return serverError(res, error, "Failed to fetch notifications.");
@@ -1070,15 +1177,16 @@ export const getDriverNotifications = async (req, res) => {
 
     const total = await Notification.countDocuments({ userId });
 
-    return success(res, { notifications, total, page, limit }, "Driver notifications fetched successfully.");
+    return success(
+      res,
+      { notifications, total, page, limit },
+      "Driver notifications fetched successfully.",
+    );
   } catch (error) {
     console.error("Error fetching driver notifications:", error);
     return serverError(res, error, "Failed to fetch notifications.");
   }
 };
-
-
-
 
 /**
  * Soft delete user account
@@ -1118,12 +1226,14 @@ export const deleteAccount = async (req, res) => {
           if (customer.profileImage) {
             try {
               await deleteObject(customer.profileImage);
-              console.log(`Deleted customer profile image: ${customer.profileImage}`);
+              console.log(
+                `Deleted customer profile image: ${customer.profileImage}`,
+              );
             } catch (error) {
               console.error("Error deleting customer profile image:", error);
             }
           }
-          
+
           // Mark as deleted (assuming your schema has isDeleted field)
           customer.isDeleted = true;
           await customer.save();
@@ -1137,7 +1247,9 @@ export const deleteAccount = async (req, res) => {
           if (driver.profileImage) {
             try {
               await deleteObject(driver.profileImage);
-              console.log(`Deleted driver profile image: ${driver.profileImage}`);
+              console.log(
+                `Deleted driver profile image: ${driver.profileImage}`,
+              );
             } catch (error) {
               console.error("Error deleting driver profile image:", error);
             }
@@ -1148,7 +1260,7 @@ export const deleteAccount = async (req, res) => {
             driver.licenseDocument,
             driver.vehicleRegistration,
             driver.insurance,
-            driver.identityProof
+            driver.identityProof,
           ].filter(Boolean); // Remove null/undefined values
 
           for (const doc of documentsToDelete) {
@@ -1173,7 +1285,9 @@ export const deleteAccount = async (req, res) => {
           if (vendor.businessLogo) {
             try {
               await deleteObject(vendor.businessLogo);
-              console.log(`Deleted vendor business logo: ${vendor.businessLogo}`);
+              console.log(
+                `Deleted vendor business logo: ${vendor.businessLogo}`,
+              );
             } catch (error) {
               console.error("Error deleting vendor business logo:", error);
             }
@@ -1183,7 +1297,9 @@ export const deleteAccount = async (req, res) => {
           if (vendor.licenseDocument) {
             try {
               await deleteObject(vendor.licenseDocument);
-              console.log(`Deleted vendor license document: ${vendor.licenseDocument}`);
+              console.log(
+                `Deleted vendor license document: ${vendor.licenseDocument}`,
+              );
             } catch (error) {
               console.error("Error deleting vendor license document:", error);
             }
@@ -1212,12 +1328,14 @@ export const deleteAccount = async (req, res) => {
       console.error("Error deleting notifications:", error);
     }
 
-    console.log(`Account successfully deleted for user: ${userId}, role: ${userRole}`);
-    
+    console.log(
+      `Account successfully deleted for user: ${userId}, role: ${userRole}`,
+    );
+
     return success(
       res,
       null,
-      "Account deleted successfully. We're sorry to see you go."
+      "Account deleted successfully. We're sorry to see you go.",
     );
   } catch (error) {
     console.error("Error deleting account:", error);
@@ -1225,27 +1343,30 @@ export const deleteAccount = async (req, res) => {
   }
 };
 
-
 /**
  * Toggle notifications on/off for the logged-in user
  */
 export const toggleNotification = async (req, res) => {
   try {
-    const userId = req.user.id; 
-    const { enabled } = req.body; 
+    const userId = req.user.id;
+    const { enabled } = req.body;
 
     if (enabled === undefined) {
-      return res.status(400).json({ success: false, message: "Missing 'enabled' field." });
+      return res
+        .status(400)
+        .json({ success: false, message: "Missing 'enabled' field." });
     }
 
     const user = await User.findByIdAndUpdate(
       userId,
       { notificationsEnabled: enabled },
-      { new: true }
+      { new: true },
     );
 
     if (!user) {
-      return res.status(404).json({ success: false, message: "User not found." });
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found." });
     }
 
     return res.status(200).json({
@@ -1258,3 +1379,155 @@ export const toggleNotification = async (req, res) => {
     return res.status(500).json({ success: false, message: "Server error." });
   }
 };
+
+export const getPermissions = async (req, res) => {
+  return res.json({
+    status: true,
+    data: Object.values(PERMISSIONS),
+  })
+}
+
+export const getSubAdmins = async (req, res) => {
+  try {
+    const page = Number(req.query.page) || 1
+    const pageSize = Number(req.query.pageSize) || 10
+    const search = req.query.search || ''
+
+    const query = {
+      role: ROLES.SUB_ADMIN,
+      ...(search && {
+        $or: [
+          { email: { $regex: search, $options: 'i' } },
+          { fullName: { $regex: search, $options: 'i' } },
+        ],
+      }),
+    }
+
+    const totalRecords = await User.countDocuments(query)
+
+    const users = await User.find(query)
+      .select('_id email fullName role verified createdAt')
+      .skip((page - 1) * pageSize)
+      .limit(pageSize)
+      .sort({ createdAt: -1 })
+      .lean()
+
+    const userIds = users.map((u) => u._id)
+
+    const permissions = await SubAdminPermission.find({
+      userId: { $in: userIds },
+    }).lean()
+
+    const permissionMap = {}
+    permissions.forEach((p) => {
+      permissionMap[p.userId.toString()] = p.permissions
+    })
+
+    const data = users.map((u) => ({
+      ...u,
+      permissions: permissionMap[u._id.toString()] || [],
+    }))
+
+    return res.json({
+      status: true,
+      data,
+      totalRecords,
+      currentPage: page,
+      pageSize,
+    })
+  } catch (err) {
+    console.error('Get sub-admins error:', err)
+    return res.status(500).json({
+      status: false,
+      message: 'Failed to fetch sub-admins',
+    })
+  }
+}
+
+export const updateSubAdmin = async (req, res) => {
+  try {
+    const { id } = req.params
+    const { permissions, password } = req.body
+
+    const user = await User.findOne({
+      _id: id,
+      role: ROLES.SUB_ADMIN,
+    })
+
+    if (!user) {
+      return res.status(404).json({
+        status: false,
+        message: 'Sub-admin not found',
+      })
+    }
+
+    // 🔐 Update password (optional)
+    if (password) {
+      user.password = await bcrypt.hash(password, 10)
+      await user.save()
+    }
+
+    // 🔑 Update permissions
+    if (permissions) {
+      const invalid = permissions.filter(
+        (p) => !Object.values(PERMISSIONS).includes(p),
+      )
+
+      if (invalid.length > 0) {
+        return res.status(400).json({
+          status: false,
+          message: `Invalid permissions: ${invalid.join(', ')}`,
+        })
+      }
+
+      await SubAdminPermission.findOneAndUpdate(
+        { userId: user._id },
+        { permissions },
+        { new: true, upsert: true },
+      )
+    }
+
+    return res.json({
+      status: true,
+      message: 'Sub-admin updated successfully',
+    })
+  } catch (err) {
+    console.error(err)
+    return res.status(500).json({
+      status: false,
+      message: 'Failed to update sub-admin',
+    })
+  }
+}
+
+export const deleteSubAdmin = async (req, res) => {
+  try {
+    const { id } = req.params
+
+    const user = await User.findOne({
+      _id: id,
+      role: ROLES.SUB_ADMIN,
+    })
+
+    if (!user) {
+      return res.status(404).json({
+        status: false,
+        message: 'Sub-admin not found',
+      })
+    }
+
+    await User.deleteOne({ _id: id })
+    await SubAdminPermission.deleteOne({ userId: id })
+
+    return res.json({
+      status: true,
+      message: 'Sub-admin deleted successfully',
+    })
+  } catch (err) {
+    console.error(err)
+    return res.status(500).json({
+      status: false,
+      message: 'Failed to delete sub-admin',
+    })
+  }
+}
