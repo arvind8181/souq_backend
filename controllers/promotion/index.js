@@ -40,6 +40,7 @@ export const addPromotion = async (req, res) => {
       startDate,
       endDate,
       hours,
+      boost,
     } = req.body;
 
     if (type === "promotion" && promotionCode) {
@@ -127,7 +128,7 @@ export const getPromotions = async (req, res) => {
             // Replace product images with presigned URLs
             if (plainProduct.images?.length > 0) {
               plainProduct.images = await getPresignedImageUrls(
-                plainProduct.images
+                plainProduct.images,
               );
             }
 
@@ -137,23 +138,23 @@ export const getPromotions = async (req, res) => {
                 plainProduct.variants.map(async (variant) => {
                   if (variant.images?.length > 0) {
                     variant.images = await getPresignedImageUrls(
-                      variant.images
+                      variant.images,
                     );
                   }
                   return variant;
-                })
+                }),
               );
             }
 
             return plainProduct;
-          })
+          }),
         );
 
         return {
           ...plainPromo,
           productIds: enrichedProducts,
         };
-      })
+      }),
     );
 
     return success(res, promotions, "Promotions fetched successfully.");
@@ -166,6 +167,7 @@ export const getPromotions = async (req, res) => {
 export const updatePromotion = async (req, res) => {
   try {
     const vendorId = req.user.id;
+    const { boost } = req.body;
     const { id } = req.params;
 
     const {
@@ -175,6 +177,7 @@ export const updatePromotion = async (req, res) => {
       discountValue,
       scopeType,
       type,
+      subCategoryNames,
       productIds,
       categoryIds,
       promotionCode,
@@ -209,16 +212,27 @@ export const updatePromotion = async (req, res) => {
     }
 
     // -------- SCOPE HANDLING (IMPORTANT) --------
-    if (scopeType === "product") {
-      promotion.productIds = productIds;
-      promotion.categoryIds = [];
-    }
+    if (scopeType !== undefined) {
+  promotion.scopeType = scopeType;
+}
 
-    if (scopeType === "category") {
-      promotion.categoryIds = categoryIds;
-      promotion.productIds = [];
-    }
+if (scopeType === "product") {
+  promotion.productIds = productIds;
+  promotion.categoryIds = [];
+  promotion.subCategoryNames = [];
+}
 
+if (scopeType === "category") {
+  promotion.categoryIds = categoryIds;
+  promotion.productIds = [];
+  promotion.subCategoryNames = [];
+}
+
+if (scopeType === "subcategory") {
+  promotion.subCategoryNames = subCategoryNames;
+  promotion.productIds = [];
+  promotion.categoryIds = [];
+}
     // -------- DATE & FLASH-SALE LOGIC --------
     if (type === "flash-sale") {
       promotion.hours = hours;
@@ -231,9 +245,50 @@ export const updatePromotion = async (req, res) => {
       if (startDate) promotion.startDate = new Date(startDate);
       if (endDate) promotion.endDate = new Date(endDate);
     }
+    if (boost !== undefined) {
+      promotion.boost = boost;
+    }
 
     await promotion.save();
+    if (promotion.boost?.isApplied) {
+      // FEATURED BADGE (PRODUCT ONLY)
+      if (promotion.boost.type === "featured") {
+        await Product.updateMany(
+          { _id: { $in: promotion.productIds } },
+          { $set: { isFeatured: true } },
+        );
+      }
 
+      // TOP OF LIST (PRODUCT ONLY)
+      if (promotion.boost.type === "top") {
+        await Product.updateMany(
+          { _id: { $in: promotion.productIds } },
+          { $set: { isTopListed: true } },
+        );
+      }
+
+      // DIRECT NOTIFICATION (CATEGORY / SUBCATEGORY)
+      if (promotion.boost.type === "notification") {
+        let products = [];
+
+        if (promotion.scopeType === "category") {
+          products = await Product.find({
+            vendorId,
+            category: { $in: promotion.categoryIds },
+          });
+        }
+
+        if (promotion.scopeType === "subcategory") {
+          products = await Product.find({
+            vendorId,
+            subCategory: { $in: promotion.subCategoryNames },
+          });
+        }
+
+        // 🔔 Trigger notification here
+        // sendNotificationToUsers(products, promotion);
+      }
+    }
     return success(res, promotion, "Promotion updated successfully.");
   } catch (err) {
     console.error("Update promotion error:", err);
@@ -249,7 +304,7 @@ export const deletePromotion = async (req, res) => {
     const promotion = await Promotion.findOneAndUpdate(
       { _id: id, vendorId, isDeleted: false },
       { isDeleted: true },
-      { new: true }
+      { new: true },
     );
 
     if (!promotion) {
@@ -321,7 +376,7 @@ export const getAllPromotions = async (req, res) => {
 
             if (plainProduct.images?.length) {
               plainProduct.images = await getPresignedImageUrls(
-                plainProduct.images
+                plainProduct.images,
               );
             }
 
@@ -330,23 +385,23 @@ export const getAllPromotions = async (req, res) => {
                 plainProduct.variants.map(async (variant) => {
                   if (variant.images?.length) {
                     variant.images = await getPresignedImageUrls(
-                      variant.images
+                      variant.images,
                     );
                   }
                   return variant;
-                })
+                }),
               );
             }
 
             return plainProduct;
-          })
+          }),
         );
 
         return {
           ...plainPromo,
           productIds: enrichedProducts,
         };
-      })
+      }),
     );
 
     return success(
@@ -357,7 +412,7 @@ export const getAllPromotions = async (req, res) => {
         currentPage: pageNumber,
         pageSize: pageLimit,
       },
-      "Promotions fetched successfully."
+      "Promotions fetched successfully.",
     );
   } catch (err) {
     console.error("Error fetching promotions:", err);
@@ -381,7 +436,7 @@ export const updateStatus = async (req, res) => {
     const promotion = await Promotion.findOneAndUpdate(
       { _id: id },
       updateFields,
-      { new: true }
+      { new: true },
     );
 
     if (!promotion) {

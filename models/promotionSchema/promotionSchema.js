@@ -34,6 +34,20 @@ const promotionSchema = new Schema(
       enum: ["Fixed", "Percentage"],
       required: true,
     },
+    boost: {
+  isApplied: {
+    type: Boolean,
+    default: false,
+  },
+  type: {
+    type: String,
+    enum: ['featured', 'top', 'notification'],
+  },
+  appliedOn: {
+    type: String,
+    enum: ['product', 'category'],
+  },
+},
     promotionCode: { type: String },
     hours: { type: Number, default: null },
     startDate: Date,

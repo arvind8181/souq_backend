@@ -14,40 +14,82 @@ const PromotionValidate = {
         .allow(null)
         .empty(""),
       discountType: Joi.string().valid("Fixed", "Percentage").required(),
-      scopeType: Joi.string().valid("product", "category").required(),
+      // scopeType: Joi.string().valid("product", "category").required(),
+      scopeType: Joi.string()
+        .valid("product", "category", "subcategory")
+        .when("$isUpdate", {
+          is: true,
+          then: Joi.optional(),
+          otherwise: Joi.required(),
+        }),
       promotionCode: Joi.when("type", {
         is: "promotion",
         then: Joi.string().trim().uppercase().required(),
         otherwise: Joi.string().trim().uppercase().optional().allow(""),
       }),
+      // productIds: Joi.when("scopeType", {
+      //   is: "product",
+      //   then: Joi.array()
+      //     .items(Joi.string().hex().length(24))
+      //     .min(1)
+      //     .required()
+      //     .messages({
+      //       "any.required": "productIds is required when scopeType is product",
+      //       "array.min": "At least one product is required",
+      //     }),
+      //   otherwise: Joi.forbidden(),
+      // }),
       productIds: Joi.when("scopeType", {
         is: "product",
-        then: Joi.array()
-          .items(Joi.string().hex().length(24))
-          .min(1)
-          .required()
-          .messages({
-            "any.required": "productIds is required when scopeType is product",
-            "array.min": "At least one product is required",
-          }),
+        then: Joi.when("$isUpdate", {
+          is: true,
+          then: Joi.array().items(Joi.string().hex().length(24)).optional(),
+          otherwise: Joi.array()
+            .items(Joi.string().hex().length(24))
+            .min(1)
+            .required(),
+        }),
         otherwise: Joi.forbidden(),
       }),
 
+      // categoryIds: Joi.when("scopeType", {
+      //   is: "category",
+      //   then: Joi.array()
+      //     .items(Joi.string().hex().length(24))
+      //     .min(1)
+      //     .required()
+      //     .messages({
+      //       "any.required":
+      //         "categoryIds is required when scopeType is category",
+      //       "array.min": "At least one category is required",
+      //     }),
+      //   otherwise: Joi.forbidden(),
+      // }),
+
       categoryIds: Joi.when("scopeType", {
         is: "category",
-        then: Joi.array()
-          .items(Joi.string().hex().length(24))
-          .min(1)
-          .required()
-          .messages({
-            "any.required":
-              "categoryIds is required when scopeType is category",
-            "array.min": "At least one category is required",
-          }),
+        then: Joi.when("$isUpdate", {
+          is: true,
+          then: Joi.array().items(Joi.string().hex().length(24)).optional(),
+          otherwise: Joi.array()
+            .items(Joi.string().hex().length(24))
+            .min(1)
+            .required(),
+        }),
         otherwise: Joi.forbidden(),
-      }),   
+      }),
+      subCategoryNames: Joi.when("scopeType", {
+        is: "subcategory",
+        then: Joi.when("$isUpdate", {
+          is: true,
+          then: Joi.array().items(Joi.string().trim()).optional(),
+          otherwise: Joi.array().items(Joi.string().trim()).min(1).required(),
+        }),
+        // otherwise: Joi.forbidden(),
+        otherwise: Joi.array().optional(),
+      }),
 
-      startDate: Joi.date().iso().optional(), 
+      startDate: Joi.date().iso().optional(),
       endDate: Joi.date()
         .allow(null) // ✅ allow null values
         .when("type", {
@@ -58,6 +100,13 @@ const PromotionValidate = {
           }),
           otherwise: Joi.date().optional().allow(null),
         }),
+      boost: Joi.object({
+        isApplied: Joi.boolean().required(),
+        type: Joi.string().valid("featured", "top", "notification").allow(null),
+        appliedOn: Joi.string()
+          .valid("product", "category", "subcategory")
+          .allow(null),
+      }).optional(),
       hours: Joi.number()
         .min(1)
         .max(24)
@@ -71,7 +120,7 @@ const PromotionValidate = {
           }),
           otherwise: Joi.number().optional().allow(null, ""),
         }),
-    })
+    }),
   ),
 };
 
