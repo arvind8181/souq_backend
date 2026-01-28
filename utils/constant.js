@@ -172,3 +172,16 @@ export const ratingsSchema = {
   5: { type: Number, default: 0 },
   overall: { type: Number, default: 0 },
 };
+
+export const calculateDays = (startDate, endDate) => {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  start.setUTCHours(0, 0, 0, 0);
+  end.setUTCHours(0, 0, 0, 0);
+
+  const diff = end.getTime() - start.getTime();
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24)) + 1;
+
+  return Math.max(days, 1);
+};

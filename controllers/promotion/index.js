@@ -4,7 +4,7 @@ import User from "../../models/user/user.js";
 
 import VendorDetail from "../../models/vendorDetails/vendorDetails.js";
 import jwt from "jsonwebtoken";
-import { ROLES } from "../../utils/constant.js";
+import { calculateDays, ROLES } from "../../utils/constant.js";
 import crypto from "crypto";
 import { COLORS } from "../../utils/constant.js";
 import { sendMail } from "../../helpers/mail.js";
@@ -12,6 +12,7 @@ import { convertTimeToUTC } from "../../helpers/utc.js";
 import Promotion from "../../models/promotionSchema/promotionSchema.js";
 import Product from "../../models/product/products.js";
 import { getPresignedImageUrls } from "../../services/s3Service.js";
+import BoostPricing from "../../models/Boost/boostprice.js";
 const {
   badRequest,
   conflict,
@@ -37,6 +38,7 @@ export const addPromotion = async (req, res) => {
       promotionCode,
       paidFlag,
       categoryIds,
+      subCategoryNames,
       startDate,
       endDate,
       hours,
@@ -51,6 +53,54 @@ export const addPromotion = async (req, res) => {
       if (exists) {
         return error(res, "Promotion code already in use.");
       }
+    }
+    let boostDetails = null;
+
+    if (boost?.isApplied && boost?.type) {
+      if (!startDate || !endDate) {
+        return badRequest(res, "Start and End date required for boost");
+      }
+
+      const boostPricing = await BoostPricing.findOne({
+        boostType: boost.type,
+      });
+
+      if (!boostPricing) {
+        return badRequest(res, "Invalid boost type");
+      }
+
+      const boostDays = calculateDays(startDate, endDate);
+
+      let targetCount = 0;
+
+      if (scopeType === "product") {
+        targetCount = productIds?.length || 0;
+      }
+
+      if (scopeType === "category") {
+        targetCount = categoryIds?.length || 0;
+      }
+
+      if (scopeType === "subcategory") {
+        targetCount = subCategoryNames?.length || 0;
+      }
+
+      if (targetCount === 0) {
+        return badRequest(res, "No targets selected for boost");
+      }
+
+      const totalBoostPrice =
+        boostPricing.pricePerDay * boostDays * targetCount;
+
+      boostDetails = {
+        isApplied: true,
+        type: boost.type,
+        appliedOn: boost.appliedOn,
+        pricePerDay: boostPricing.pricePerDay,
+        days: boostDays,
+        targetCount,
+        totalPrice: totalBoostPrice,
+      };
     }
     const promotion = new Promotion({
       vendorId,
@@ -67,6 +117,7 @@ export const addPromotion = async (req, res) => {
       promotionCode: promotionCode ? promotionCode.toUpperCase() : undefined,
       startDate: startDate ? new Date(startDate) : undefined,
       endDate: endDate ? new Date(endDate) : undefined,
+      boost: boostDetails,
     });
 
     await promotion.save();
@@ -196,43 +247,37 @@ export const updatePromotion = async (req, res) => {
     // -------- BASIC FIELDS --------
     if (title !== undefined) promotion.title = title;
     if (description !== undefined) promotion.description = description;
-    if (promotionCode !== undefined) promotion.promotionCode = promotionCode;
+    if (promotionCode !== undefined && promotionCode !== "") {
+      promotion.promotionCode = promotionCode;
+    }
     if (paidFlag !== undefined) promotion.paidFlag = paidFlag;
     if (type !== undefined) promotion.type = type;
 
     // -------- DISCOUNT --------
-    if (discountType === "Percentage") {
-      promotion.discountPercentage = discountValue;
-      promotion.fixedPrice = null;
+    if (discountType !== undefined) {
+      promotion.discountType = discountType;
     }
 
-    if (discountType === "Fixed") {
-      promotion.fixedPrice = discountValue;
-      promotion.discountPercentage = null;
+    if (discountValue !== undefined) {
+      promotion.discountValue = discountValue;
     }
 
     // -------- SCOPE HANDLING (IMPORTANT) --------
     if (scopeType !== undefined) {
-  promotion.scopeType = scopeType;
-}
+      promotion.scopeType = scopeType;
+    }
 
-if (scopeType === "product") {
-  promotion.productIds = productIds;
-  promotion.categoryIds = [];
-  promotion.subCategoryNames = [];
-}
+    if (scopeType === "product") {
+      promotion.productIds = productIds;
+      promotion.categoryIds = [];
+      promotion.subCategoryNames = [];
+    }
 
-if (scopeType === "category") {
-  promotion.categoryIds = categoryIds;
-  promotion.productIds = [];
-  promotion.subCategoryNames = [];
-}
-
-if (scopeType === "subcategory") {
-  promotion.subCategoryNames = subCategoryNames;
-  promotion.productIds = [];
-  promotion.categoryIds = [];
-}
+    if (scopeType === "category") {
+      promotion.categoryIds = categoryIds;
+      promotion.productIds = [];
+      promotion.subCategoryNames = subCategoryNames || [];
+    }
     // -------- DATE & FLASH-SALE LOGIC --------
     if (type === "flash-sale") {
       promotion.hours = hours;
@@ -245,8 +290,62 @@ if (scopeType === "subcategory") {
       if (startDate) promotion.startDate = new Date(startDate);
       if (endDate) promotion.endDate = new Date(endDate);
     }
-    if (boost !== undefined) {
-      promotion.boost = boost;
+    if (boost?.isApplied) {
+      if (!promotion.startDate || !promotion.endDate) {
+        return badRequest(res, "Start and End date required for boost");
+      }
+
+      const days = calculateDays(promotion.startDate, promotion.endDate);
+
+      let targetCount = 0;
+
+      if (promotion.scopeType === "product") {
+        targetCount = promotion.productIds?.length || 0;
+      }
+
+      if (promotion.scopeType === "category") {
+        targetCount = promotion.categoryIds?.length || 0;
+      }
+
+      if (promotion.scopeType === "subcategory") {
+        targetCount = promotion.subCategoryNames?.length || 0;
+      }
+
+      if (targetCount === 0) {
+        return badRequest(res, "No targets selected for boost");
+      }
+
+      const boostPrice = await BoostPricing.findOne({
+        boostType: boost.type,
+      });
+
+      if (!boostPrice) {
+        return badRequest(res, "Boost pricing not found");
+      }
+
+      promotion.boost = {
+        isApplied: true,
+        type: boost.type,
+        appliedOn: boost.appliedOn,
+        pricePerDay: boostPrice.pricePerDay,
+        days,
+        targetCount,
+        totalPrice: boostPrice.pricePerDay * days * targetCount,
+      };
+    } else {
+      promotion.boost = {
+        isApplied: false,
+        type: null,
+        appliedOn: null,
+        pricePerDay: 0,
+        days: 0,
+        targetCount: 0,
+        totalPrice: 0,
+      };
+      await Product.updateMany(
+        { _id: { $in: promotion.productIds } },
+        { $set: { isFeatured: false, isTopListed: false } },
+      );
     }
 
     await promotion.save();

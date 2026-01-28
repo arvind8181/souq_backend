@@ -35,19 +35,31 @@ const promotionSchema = new Schema(
       required: true,
     },
     boost: {
-  isApplied: {
-    type: Boolean,
-    default: false,
-  },
-  type: {
-    type: String,
-    enum: ['featured', 'top', 'notification'],
-  },
-  appliedOn: {
-    type: String,
-    enum: ['product', 'category'],
-  },
-},
+      isApplied: {
+        type: Boolean,
+        default: false,
+      },
+      type: {
+        type: String,
+        enum: ["featured", "top", "notification"],
+      },
+      appliedOn: {
+        type: String,
+        enum: ["product", "category"],
+      },
+      pricePerDay: {
+        type: Number,
+      },
+      days: {
+        type: Number,
+      },
+      targetCount: {
+        type: Number,
+      },
+      totalPrice: {
+        type: Number,
+      },
+    },
     promotionCode: { type: String },
     hours: { type: Number, default: null },
     startDate: Date,
@@ -55,7 +67,7 @@ const promotionSchema = new Schema(
     isDeleted: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 const Promotion = model("Promotion", promotionSchema);

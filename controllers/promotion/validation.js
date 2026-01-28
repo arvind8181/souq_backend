@@ -66,18 +66,18 @@ const PromotionValidate = {
       //   otherwise: Joi.forbidden(),
       // }),
 
-      categoryIds: Joi.when("scopeType", {
-        is: "category",
-        then: Joi.when("$isUpdate", {
-          is: true,
-          then: Joi.array().items(Joi.string().hex().length(24)).optional(),
-          otherwise: Joi.array()
-            .items(Joi.string().hex().length(24))
-            .min(1)
-            .required(),
-        }),
-        otherwise: Joi.forbidden(),
-      }),
+     categoryIds: Joi.when("scopeType", {
+  is: "category",
+  then: Joi.when("$isUpdate", {
+    is: true,
+    then: Joi.array().items(Joi.string().hex().length(24)).optional(),
+    otherwise: Joi.array()
+      .items(Joi.string().hex().length(24))
+      .min(1)
+      .required(),
+  }),
+  otherwise: Joi.array().max(0).optional(), // ✅ allow []
+}),
       subCategoryNames: Joi.when("scopeType", {
         is: "subcategory",
         then: Joi.when("$isUpdate", {
